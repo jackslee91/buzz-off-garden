@@ -79,6 +79,7 @@ body[data-lang="zh"] .en{display:none!important}
 /* lobby */
 #lobby{position:absolute;inset:0;z-index:30;overflow:auto;background:linear-gradient(var(--sky) 0 38%,var(--grass) 38%);padding:max(16px,env(safe-area-inset-top,0px)) 16px max(24px,env(safe-area-inset-bottom,0px));display:flex;align-items:flex-start;justify-content:center}
 #lobby .panel{width:min(38rem,100%);margin-block:auto;background:var(--paper);border:4px solid var(--ink);border-radius:1.6rem;box-shadow:0 8px 0 var(--ink);padding:clamp(1rem,3.5vw,1.8rem);display:grid;gap:1rem}
+#lobby .copy,.rep .copy,#qb .copy{margin:0;text-align:center;font-size:.78rem;font-weight:700;opacity:.8}
 #lobby h1{margin:0;font-family:var(--f-disp);font-weight:800;font-size:clamp(2rem,8vw,3.2rem);line-height:1;text-wrap:balance}
 #lobby h1 span{display:inline-block;transform:rotate(-4deg);color:#b87500}
 .story{margin:0}
@@ -271,6 +272,7 @@ body.qbprint{overflow:visible!important;height:auto!important}
         </div>
       </div>
       <button class="btn go" id="go"><span class="en">Enter the garden</span><span class="zh inl">进入花园</span></button>
+      <p class="copy">Copyright © 2026 Mr Lee’s English Classroom. All rights reserved.</p>
     </div>
   </div>
 </div>
@@ -1838,7 +1840,7 @@ function openReport(fromWin){
   var list=isT?[]:[{n:P.name,c:P.ch,p:S.pts,me:1}];for(var id in remotes)if(!remotes[id].t)list.push({n:remotes[id].n,c:remotes[id].c,p:remotes[id].p});
   list.sort(function(a,b){return b.p-a.p;});
   if(list.length>1){h+='<div><span class="lab">'+bi('Garden team','花园小队')+'</span><ul class="team">';list.slice(0,10).forEach(function(r){h+='<li><span>'+CH[r.c].e+'</span><b>'+esc(r.n)+'</b><span>⭐ '+r.p+'</span></li>';});h+='</ul></div>';}
-  h+='<div class="mactions"><button class="btn go" data-a="again">'+bi('Back to the garden','回到花园')+'</button></div></div>';
+  h+='<div class="mactions"><button class="btn go" data-a="again">'+bi('Back to the garden','回到花园')+'</button></div><p class="copy">Copyright © 2026 Mr Lee’s English Classroom. All rights reserved.</p></div>';
   openModal(h);
   if(fromWin)TTS.say('Well done, team! Every sentence you fixed helped the bees go home.','团队做得好！你们改正的每个句子都帮助蜜蜂回家了。');
 }
@@ -2063,7 +2065,7 @@ function qbRender(){
     });
     if(!n)h+='<p>No questions match. 没有符合的题目。</p>';
   }else h+=qbForm();
-  h+='</div>';
+  h+='<p class="copy">Copyright © 2026 Mr Lee’s English Classroom. All rights reserved.</p></div>';
   var sc=box.scrollTop,focus=document.activeElement&&document.activeElement.id==='qb-search';
   box.innerHTML=h;box.scrollTop=sc;
   if(focus){var si=$('qb-search');si.focus();si.setSelectionRange(si.value.length,si.value.length);}
