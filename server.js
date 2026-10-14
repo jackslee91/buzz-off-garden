@@ -9,7 +9,10 @@ const { WebSocketServer } = require('ws');
 
 const PORT = process.env.PORT || 3000;
 const PIN = String(process.env.TEACHER_PIN || '');
-const PUB = path.join(__dirname, 'public');
+// Normally the game files live in ./public. If they were uploaded flat (no public folder), serve just those two files from here.
+const HAS_PUBLIC = fs.existsSync(path.join(__dirname, 'public', 'index.html'));
+const PUB = HAS_PUBLIC ? path.join(__dirname, 'public') : __dirname;
+const FLAT_OK = new Set(['/index.html', '/shim.js']);
 const TICK_MS = 200;          // how often changes are batched and sent
 const MAX_ROOM = 120;         // players per class code
 const MAX_CLIENTS = 600;      // whole server
@@ -24,6 +27,7 @@ const server = http.createServer((req, res) => {
   try { p = decodeURIComponent(new URL(req.url, 'http://x').pathname); } catch (e) { res.writeHead(400); return res.end('Bad request'); }
   if (p === '/healthz') { res.writeHead(200, { 'content-type': 'text/plain' }); return res.end('ok'); }
   if (p === '/') p = '/index.html';
+  if (!HAS_PUBLIC && !FLAT_OK.has(p)) { res.writeHead(404, { 'content-type': 'text/plain' }); return res.end('Not found'); }
   const f = path.normalize(path.join(PUB, p));
   if (!f.startsWith(PUB + path.sep)) { res.writeHead(403); return res.end('Forbidden'); }
   fs.readFile(f, (err, data) => {
