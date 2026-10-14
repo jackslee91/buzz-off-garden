@@ -10,7 +10,7 @@ function wsUrl(){
 function Room(name){
   var self=this;
   name=String(name||'').toLowerCase().replace(/^bz-/,'').replace(/[^a-z0-9]/g,'').slice(0,12);
-  self.isAdmin=false;
+  self.isAdmin=false;self.round='';self.bank=null;self.store=false;var lastBank=null;
   var sock=null,open=false,dead=false,backoff=800,lastPres=null,pinSent='';
   var peers={};            // id -> presence
   var peerCbs=[],connCbs=[],topicCbs={};
@@ -33,10 +33,11 @@ function Room(name){
     s.onmessage=function(ev){
       var m;try{m=JSON.parse(ev.data);}catch(e){return;}
       if(m.t==='welcome'){
-        myId=m.id;self.isAdmin=!!m.admin;open=true;backoff=800;
+        myId=m.id;self.isAdmin=!!m.admin;self.round=m.round||'';self.bank=m.bank||null;self.store=!!m.store;open=true;backoff=800;
         if(firstJoin){var f=firstJoin;firstJoin=null;firstFail=null;f(self);}
         fireConn(true);
         if(lastPres)s.send(JSON.stringify({t:'pres',d:lastPres}));
+        if(self.isAdmin&&lastBank)s.send(JSON.stringify({t:'bank',b:lastBank}));
       }else if(m.t==='full'){
         peers={};var j=[];
         (m.u||[]).forEach(function(p){peers[p[0]]=p[1];j.push(p[0]);});
@@ -48,6 +49,12 @@ function Room(name){
         if((m.u&&m.u.length)||l2.length)firePeers(j2,l2);
       }else if(m.t==='ev'){
         (topicCbs[m.topic]||[]).slice().forEach(function(f){try{f({topic:m.topic,data:m.data,peer:m.from||'',isMe:m.from===myId,sameTab:m.from===myId,by:null,kind:'viewer',guest:false});}catch(e){}});
+      }else if(m.t==='bank'){
+        self.bank=m.b||null;
+        (topicCbs.bank||[]).slice().forEach(function(f){try{f({topic:'bank',data:{b:m.b},peer:'',isMe:false,sameTab:false,by:null,kind:'viewer',guest:false});}catch(e){}});
+      }else if(m.t==='bankok'){
+        self.store=!!m.store;
+        (topicCbs.banksaved||[]).slice().forEach(function(f){try{f({topic:'banksaved',data:{ok:!!m.ok,store:!!m.store}});}catch(e){}});
       }else if(m.t==='err'){
         if(m.c==='bad_room'||m.c==='room_full'||m.c==='server_full'){if(firstFail){var g=firstFail;firstJoin=null;firstFail=null;dead=true;try{s.close();}catch(e){}g(new Error(m.c));}}
       }
@@ -78,6 +85,7 @@ function Room(name){
     if(open)try{sock.send(JSON.stringify({t:'ev',topic:topic,data:data}));}catch(e){}
     return Promise.resolve();
   };
+  self.publishBank=function(b){lastBank=b;if(open&&self.isAdmin){try{sock.send(JSON.stringify({t:'bank',b:b}));}catch(e){}}};
   self.presence=function(o){
     lastPres=o;
     if(open)try{sock.send(JSON.stringify({t:'pres',d:o}));}catch(e){}

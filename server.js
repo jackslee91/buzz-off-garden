@@ -17,6 +17,30 @@ const TICK_MS = 200;          // how often changes are batched and sent
 const MAX_ROOM = 120;         // players per class code
 const MAX_CLIENTS = 600;      // whole server
 const MAX_PRES_BYTES = 700;
+const MAX_BANK_BYTES = 250000;
+// Optional free online store (Upstash Redis REST) so the teacher's questions survive restarts and work on any computer.
+const UP_URL = process.env.UPSTASH_REDIS_REST_URL || '';
+const UP_TOKEN = process.env.UPSTASH_REDIS_REST_TOKEN || '';
+const STORE = !!(UP_URL && UP_TOKEN);
+let globalBank = null;
+async function upstash(cmd) {
+  const r = await fetch(UP_URL, { method: 'POST', headers: { Authorization: 'Bearer ' + UP_TOKEN, 'Content-Type': 'application/json' }, body: JSON.stringify(cmd), signal: AbortSignal.timeout(6000) });
+  if (!r.ok) throw new Error('store answered ' + r.status);
+  return (await r.json()).result;
+}
+async function loadStore() {
+  if (!STORE) return;
+  try {
+    const v = await upstash(['GET', 'bz:bank']);
+    if (v) { const b = JSON.parse(v); if (b && typeof b === 'object') { globalBank = b; console.log('Question bank loaded from the online store'); } }
+    else console.log('Online store connected (no saved questions yet)');
+  } catch (e) { console.warn('Could not read the online store:', e.message); }
+}
+async function saveStore(b) {
+  if (!STORE) return false;
+  try { await upstash(['SET', 'bz:bank', JSON.stringify(b)]); return true; }
+  catch (e) { console.warn('Could not save to the online store:', e.message); return false; }
+}
 
 if (!PIN) console.warn('WARNING: TEACHER_PIN is not set. Nobody can use teacher mode until you set it.');
 
@@ -25,6 +49,7 @@ const MIME = { '.html': 'text/html; charset=utf-8', '.js': 'text/javascript; cha
 const server = http.createServer((req, res) => {
   let p;
   try { p = decodeURIComponent(new URL(req.url, 'http://x').pathname); } catch (e) { res.writeHead(400); return res.end('Bad request'); }
+  if (p === '/bank') { res.writeHead(200, { 'content-type': 'application/json', 'cache-control': 'no-store' }); return res.end(JSON.stringify({ bank: globalBank })); }
   if (p === '/healthz') { res.writeHead(200, { 'content-type': 'text/plain' }); return res.end('ok'); }
   if (p === '/') p = '/index.html';
   if (!HAS_PUBLIC && !FLAT_OK.has(p)) { res.writeHead(404, { 'content-type': 'text/plain' }); return res.end('Not found'); }
@@ -42,7 +67,7 @@ const server = http.createServer((req, res) => {
   });
 });
 
-const wss = new WebSocketServer({ server, path: '/ws', maxPayload: 2048 });
+const wss = new WebSocketServer({ server, path: '/ws', maxPayload: 262144 });
 const rooms = new Map(); // code -> { clients:Set, dirty:Map(id->pres), left:Set(id) }
 let total = 0;
 
@@ -75,6 +100,7 @@ wss.on('connection', (ws) => {
   ws.on('pong', () => { ws.isAlive = true; });
   ws.on('error', () => {});
   ws.on('message', (raw) => {
+    if (raw.length > 2048 && !ws.admin) return; // only the teacher may send big messages (question bank)
     let m;
     try { m = JSON.parse(raw.toString()); } catch (e) { return; }
     if (!m || typeof m.t !== 'string') return;
@@ -84,7 +110,7 @@ wss.on('connection', (ws) => {
       if (!/^[a-z0-9]{1,12}$/.test(code)) { send(ws, { t: 'err', c: 'bad_room' }); return; }
       if (total >= MAX_CLIENTS) { send(ws, { t: 'err', c: 'server_full' }); return; }
       let room = rooms.get(code);
-      if (!room) { room = { code, clients: new Set(), dirty: new Map(), left: new Set() }; rooms.set(code, room); }
+      if (!room) { room = { code, clients: new Set(), dirty: new Map(), left: new Set(), round: '', bank: globalBank }; rooms.set(code, room); }
       if (room.clients.size >= MAX_ROOM) { send(ws, { t: 'err', c: 'room_full' }); return; }
       ws.id = crypto.randomBytes(5).toString('hex');
       ws.admin = !!m.pin && pinOk(m.pin);
@@ -93,7 +119,7 @@ wss.on('connection', (ws) => {
       total++;
       const full = [];
       room.clients.forEach(c => { if (c !== ws && c.pres) full.push([c.id, c.pres]); });
-      send(ws, { t: 'welcome', id: ws.id, admin: ws.admin, wantedAdmin: !!m.pin });
+      send(ws, { t: 'welcome', id: ws.id, admin: ws.admin, wantedAdmin: !!m.pin, round: room.round, bank: room.bank, store: STORE });
       send(ws, { t: 'full', u: full });
       return;
     }
@@ -106,6 +132,17 @@ wss.on('connection', (ws) => {
       ws.room.dirty.set(ws.id, m.d); // newest wins; sent on the next tick
       return;
     }
+    if (m.t === 'bank') {
+      if (!ws.admin) { send(ws, { t: 'err', c: 'not_permitted', topic: 'bank' }); return; }
+      const nowb = Date.now();
+      if (ws.lastBank && nowb - ws.lastBank < 1500) return;
+      ws.lastBank = nowb;
+      if (!m.b || typeof m.b !== 'object' || JSON.stringify(m.b).length > MAX_BANK_BYTES) return;
+      globalBank = m.b;
+      rooms.forEach((rm) => { rm.bank = m.b; sendRoom(rm, { t: 'bank', b: m.b }); });
+      saveStore(m.b).then((ok) => send(ws, { t: 'bankok', ok, store: STORE }));
+      return;
+    }
     if (m.t === 'ev') {
       if (!ws.admin) { send(ws, { t: 'err', c: 'not_permitted', topic: m.topic }); return; }
       const now = Date.now();
@@ -114,6 +151,9 @@ wss.on('connection', (ws) => {
       if (m.topic === 'say') {
         const t = String(m.data && m.data.t || '').replace(/[\u0000-\u001f<>]/g, '').slice(0, 140);
         if (t) sendRoom(ws.room, { t: 'ev', topic: 'say', data: { t }, from: ws.id });
+      } else if (m.topic === 'round') {
+        const id = String(m.data && m.data.id || '');
+        if (/^[a-z0-9]{1,24}$/.test(id)) { ws.room.round = id; sendRoom(ws.room, { t: 'ev', topic: 'round', data: { id }, from: ws.id }); }
       } else if (m.topic === 'goal') {
         const g = Math.round(+(m.data && m.data.per));
         if (g >= 20 && g <= 300) sendRoom(ws.room, { t: 'ev', topic: 'goal', data: { per: g }, from: ws.id });
@@ -145,4 +185,4 @@ setInterval(() => {
   });
 }, 25000);
 
-server.listen(PORT, () => console.log('Buzz Off Garden running on port ' + PORT));
+loadStore().then(() => server.listen(PORT, () => console.log('Buzz Off Garden running on port ' + PORT + (STORE ? ' (online question store on)' : ' (no online store)'))));

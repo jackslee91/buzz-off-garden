@@ -174,6 +174,31 @@ body[data-lang="zh"] .en{display:none!important}
   #meter .pts{grid-column:1/-1}
 }
 @media (prefers-reduced-motion:reduce){#act{animation:none}.fx.pop{animation:none}}
+#qb{position:fixed;inset:0;z-index:60;background:rgba(35,51,28,.6);display:flex;justify-content:center;align-items:flex-start;padding:10px;overflow:auto}
+#qb[hidden]{display:none!important}
+.qbbtn{min-height:2.6rem;padding:.2rem 1rem;border:3px solid var(--ink);border-radius:99px;background:#fff;font-weight:800;font-family:inherit;cursor:pointer}
+#qb .qbc{background:var(--paper);border:4px solid var(--ink);border-radius:1.2rem;box-shadow:0 8px 0 var(--ink);width:min(62rem,100%);padding:1rem;display:grid;gap:.7rem;color:var(--ink)}
+#qb .qh{display:flex;justify-content:space-between;align-items:center;gap:.5rem}#qb h2,#qb h3{margin:0;font-family:var(--f-disp)}
+#qb .small{margin:0}
+#qb button.sm{min-height:2.3rem;padding:.1rem .7rem;border:2px solid var(--ink);border-radius:99px;background:#fff;font-weight:800;font-size:.85rem;cursor:pointer;font-family:inherit}
+#qb button.sm[aria-pressed="true"],#qb button.go{background:var(--ink);color:#fff}
+#qb .qtools,#qb .qadd{display:flex;gap:.4rem;flex-wrap:wrap;align-items:center}
+#qb input,#qb select{min-height:2.3rem;border:2px solid var(--ink);border-radius:.6rem;padding:.1rem .5rem;font:inherit;background:#fff;color:var(--ink)}
+#qb input[type=checkbox],#qb input[type=radio]{min-height:0;width:1.2rem;height:1.2rem}
+#qb .qr{background:#fff;border:3px solid var(--line);border-radius:1rem;padding:.6rem .8rem;display:grid;gap:.3rem}
+#qb .qr.off{opacity:.55}
+#qb .qr header{display:flex;gap:.35rem;flex-wrap:wrap;align-items:center}#qb .sp{flex:1}
+#qb .pill{background:var(--sky);border:2px solid var(--ink);border-radius:99px;padding:0 .5rem;font-size:.78rem;font-weight:800}
+#qb .qo{margin:0;padding-left:1.4rem;display:grid;gap:.1rem}#qb li.ok{color:var(--good);font-weight:800}
+#qb .qw{display:flex;gap:.4rem;flex-wrap:wrap}#qb .qw span{padding:.1rem .5rem;border:2px solid var(--line);border-radius:.5rem}#qb .qw span.ok{background:var(--good-bg);border-color:var(--good);font-weight:800}
+#qb .qf{font-weight:800}#qb .qs{font-size:1.05rem}
+#qb .qform{display:grid;gap:.5rem;background:#fff;border:3px solid var(--ink);border-radius:1rem;padding:.8rem}
+#qb .qfld{display:grid;gap:.1rem;font-size:.85rem;flex:1;min-width:10rem}
+#qb .qopt{display:flex;gap:.4rem;flex-wrap:wrap;align-items:end;border-top:2px dashed var(--line);padding-top:.4rem}
+#qb .chk{display:inline-flex;gap:.3rem;align-items:center;font-weight:700}
+#qb .qerr{color:var(--berry);font-weight:800;margin:0}
+body.qbprint{overflow:visible!important;height:auto!important}
+@media print{body.qbprint>*:not(#qb){display:none!important}body.qbprint #qb{position:static;background:none;padding:0;display:block}body.qbprint #qb .qbc{box-shadow:none;border:none;width:100%}body.qbprint #qb .qtools,body.qbprint #qb .qr header button,body.qbprint #qb .qh button,body.qbprint #qb .qadd{display:none}body.qbprint #qb .qr{break-inside:avoid}}
 </style>
 
 <div id="app">
@@ -200,6 +225,7 @@ body[data-lang="zh"] .en{display:none!important}
   </div>
   <div id="roster" class="chip" hidden></div>
   <div id="mon" class="chip" hidden></div>
+  <div id="qb" hidden role="dialog" aria-modal="true" aria-label="Question bank"></div>
   <div id="toast" role="status"></div>
   <div id="bottom" class="hud" hidden>
     <div id="hint" class="bi" hidden></div>
@@ -228,6 +254,7 @@ body[data-lang="zh"] .en{display:none!important}
         <label><span class="lab"><span class="en">Class code</span><span class="zh inl">班级代码</span></span><input id="code" maxlength="12" autocomplete="off" autocapitalize="none" autocorrect="off" spellcheck="false" inputmode="text" placeholder="e.g. 3sun"></label>
       </div>
       <label id="teachrow" class="teach" hidden><input type="checkbox" id="isteacher"> <span class="en">I am the teacher</span><span class="zh inl">我是老师</span><input id="tpin" type="password" autocomplete="off" maxlength="40" placeholder="Teacher PIN 教师密码" style="width:11rem;height:auto;padding:.3rem .5rem;border:2px solid var(--ink);border-radius:.6rem;font:inherit"></label>
+      <button id="qbopen" type="button" class="qbbtn" hidden>📚 Question bank 题库</button>
       <p class="small" id="codehelp"><span class="en">Class code: small letters and numbers only, no spaces, like 3sun. Everyone in your class types the same code. Leave it empty to play on your own.</span><span class="zh">班级代码只能用小写字母和数字，不要空格，例如 3sun。同一个班的同学要输入相同的代码。留空就是自己玩。</span></p>
       <div>
         <span class="lab"><span class="en">Language</span><span class="zh inl">语言</span></span>
@@ -714,7 +741,7 @@ var PQ=[
     hint:X('This word means the person who is speaking.','这个词表示正在说话的人，也就是“我”。'),
     why:X('The word I is always a capital letter, wherever it is in a sentence.','单词 I（我）无论在句子的什么位置，都要大写。')},
    {id:38,lvl:1,tags:['cap'],type:'tap',art:'✈️',
-    en:'Tap all 2 words that need a capital letter. Then press Check.',zh:'点出所有需要大写的 2 个词，然后按“检查答案”。',
+    en:'Tap the 2 words that need a capital letter. Then press Check.',zh:'点出所有需要大写的 2 个词，然后按“检查答案”。',
     words:['We','flew','to','spain','with','tom.'],need:[3,5],
     full:'We flew to Spain with Tom.',
     hint:X('One word is a country and one is a person.','一个词是国家名，一个词是人名。'),
@@ -1001,7 +1028,7 @@ var SK=[{k:'cap',sym:'A',en:'Capital letters',zh:'大写字母',tip:'Check the f
 /* ---------- state ---------- */
 var L='both';
 var P={name:'',ch:0,code:''};            // chosen in the lobby
-var S={learned:{},solved:{},pts:0,att:{},hit:{},first:0,sd:1,k:''};  // my saved progress
+var S={learned:{},solved:{},pts:0,att:{},hit:{},first:0,sd:1,k:'',rd:''},ROUND='',joinedAt=0;  // my saved progress
 var isT=false,canTeach=false,act='w',goalPer=80,U=null;
 var playing=false,won=false,room=null,roomName='',connected=false;
 var remotes={},seen={};                   // other players, and the best points seen for each player id
@@ -1015,12 +1042,13 @@ function save(){try{if(!isT)localStorage.setItem('bz-save2',JSON.stringify({S:S,
     var o=JSON.parse(localStorage.getItem('bz-save2')||'null');
     if(o){
       if(o.S){['learned','solved','att','hit'].forEach(function(k){if(o.S[k]&&typeof o.S[k]==='object')S[k]=o.S[k];});
-        S.pts=+o.S.pts||0;S.first=+o.S.first||0;S.sd=+o.S.sd||1;S.k=String(o.S.k||'').slice(0,20);}
+        S.pts=+o.S.pts||0;S.first=+o.S.first||0;S.sd=+o.S.sd||1;S.k=String(o.S.k||'').slice(0,20);S.rd=String(o.S.rd||'').slice(0,24);}
       if(o.P){P.name=String(o.P.name||'').slice(0,14);P.ch=clamp(+o.P.ch||0,0,7);P.code=cleanCode(o.P.code);}
       if(o.L==='en'||o.L==='zh'||o.L==='both')L=o.L;
     }
   }catch(e){}
   if(!S.k){S.k=Math.random().toString(36).slice(2,12);S.sd=1+Math.floor(Math.random()*1e6);}
+  ROUND=S.rd||'';
 })();
 
 /* ---------- seeded garden layout (same for every pupil) ---------- */
@@ -1056,11 +1084,13 @@ var ITEMS_AT=[],CLUES=[],STONES=[],DECOR=[];
 })();
 /* every pupil gets the questions in a fresh order, easy first, harder later. A solved honey pot grows back with the next question. */
 var SEQ=[];
-(function(){
+function buildSeq(){
+  SEQ=[];
   var rng=mulberry(S.sd||1),tiers=[[],[],[]];
   PQ.forEach(function(q,i){tiers[q.lvl-1].push(i);});
   tiers.forEach(function(t){for(var i=t.length-1;i>0;i--){var j=Math.floor(rng()*(i+1)),x=t[i];t[i]=t[j];t[j]=x;}SEQ=SEQ.concat(t);});
-})();
+}
+buildSeq();
 function nextQ(){
   for(var n=0;n<SEQ.length;n++){
     var i=SEQ[n];
@@ -1173,7 +1203,33 @@ function updateHud(){
   var n=isT?0:1;for(var k in remotes)if(!remotes[k].t)n++;
   $('peercount').textContent=n;
   renderRoster();
-  if(!won&&playing&&p>=1){won=true;try{localStorage.setItem('bz-won',String(Date.now()));}catch(e){}celebrate(120);Music.sfx('done');TTS.say('Hooray! The bees have flown home. The garden is saved!','太棒了！蜜蜂都飞回家了，花园得救了！');setTimeout(function(){openReport(true);},1400);}
+  if(!won&&playing&&p>=1){
+    won=true;
+    if(!isT&&room&&S.pts===0&&solvedCount()===0&&learnedCount()===0){lateNote();}
+    else{try{localStorage.setItem('bz-won',String(Date.now()));}catch(e){}celebrate(120);Music.sfx('done');TTS.say('Hooray! The bees have flown home. The garden is saved!','太棒了！蜜蜂都飞回家了，花园得救了！');if(!isT)setTimeout(function(){openReport(true);},1400);}
+  }
+}
+function lateNote(){
+  var h='<div class="rep"><div class="mtag"><span>🐝 '+bi('Welcome, friend!','欢迎，朋友！')+'</span></div><h2>'+bi('Your class already sent the bees home! 🎉','你的班级已经把蜜蜂赶回家了！🎉')+'</h2><p>'+bi('You joined after the bees had gone. You can still read the flower clues and try the honey questions to practise. Ask your teacher for a New Round so you can play together again.','你是在蜜蜂回家之后才加入的。你仍然可以阅读花朵线索、练习蜂蜜问题。请老师开始“新一轮”，大家就能再一起玩。')+'</p><div class="mactions"><button class="btn go" data-a="again">'+bi('Back to the garden','回到花园')+'</button></div></div>';
+  openModal(h);
+  TTS.say('Your class already sent the bees home! Ask your teacher for a new round to play together again.','你的班级已经把蜜蜂赶回家了！请老师开始新一轮，大家就能再一起玩。');
+}
+function newRound(id){
+  ROUND=String(id||'').slice(0,24);S.rd=ROUND;
+  S.learned={};S.solved={};S.pts=0;S.att={};S.hit={};S.first=0;S.sd=1+Math.floor(Math.random()*1e6);
+  seen={};bestProg=0;won=false;
+  try{localStorage.removeItem('bz-won');}catch(e){}
+  buildSeq();assignStones();initBees();
+  if(modalOpen)closeModal();
+  save();pushPresence(true);updateHud();renderMon();
+  toast('A new round has started! The bees are back! 🐝','新一轮开始了！蜜蜂又回来了！🐝',5000);
+  TTS.say('A new round has started! The bees are back. Let us chase them away again!','新一轮开始了！蜜蜂又回来了，我们再把它们赶走吧！');
+}
+function startNewRound(){
+  if(!confirm('Start a new round for everyone in this class? All points and progress will reset and the bees will come back.\n要为全班开始新一轮吗？所有人的分数和进度都会重置，蜜蜂会回来。'))return;
+  var id=Date.now().toString(36)+Math.random().toString(36).slice(2,5);
+  newRound(id);
+  if(room){try{room.emit('round',{id:id}).catch(function(){toast('Only the teacher account can start a new round.','只有老师账号可以开始新一轮。');});}catch(e){}}
 }
 function learnedCount(){return Object.keys(S.learned).length;}
 function solvedCount(){return Object.keys(S.solved).length;}
@@ -1185,7 +1241,7 @@ function presGap(){var n=0;for(var k in remotes)n++;return n<=8?110:Math.min(450
 function pushPresence(force){
   if(!room||!playing)return;
   var now=performance.now();
-  var o={n:P.name,c:isT?8:P.ch,t:isT?1:0,a:act,x:Math.round(me.x),y:Math.round(me.y),p:S.pts,l:learnedCount(),s:solvedCount(),k:S.k,e:me.emo||null,et:me.emoAt||0};
+  var o={n:P.name,c:isT?8:P.ch,t:isT?1:0,a:act,x:Math.round(me.x),y:Math.round(me.y),p:S.pts,l:learnedCount(),s:solvedCount(),k:S.k,e:me.emo||null,et:me.emoAt||0,rd:ROUND};
   var key=JSON.stringify(o);
   if(!force&&(key===sentKey||now-lastSent<presGap()))return;
   sentKey=key;lastSent=now;
@@ -1207,7 +1263,7 @@ function onPeers(ch){
     r.n=cleanName(d.n);r.c=clamp(Math.floor(+d.c||0),0,CH.length-1);r.p=np;
     r.l=nl;r.s=ns;
     var k=String(d.k||pr.peer).slice(0,20);
-    if(!r.t&&(!(k in seen)||r.p>seen[k]))seen[k]=r.p;
+    if(!r.t&&String(d.rd||'')===ROUND&&(!(k in seen)||r.p>seen[k]))seen[k]=r.p;
     if(d.e&&d.et!==r.et){r.et=d.et;r.emo=String(d.e).slice(0,4);r.emoUntil=performance.now()+3500;}
     live[pr.peer]=1;
   });
@@ -1227,7 +1283,16 @@ async function connectRoom(){
     }
     if(!r)return;
     if(isT&&r.isAdmin===false){isT=false;act='w';$('b-class').hidden=true;$('mon').hidden=true;toast('Wrong teacher PIN. You joined as a pupil.','教师密码不对，你以学生身份加入。',7000);}
-    room=r;
+    room=r;joinedAt=performance.now();
+    try{room.on('round',function(m){var id=m&&m.data&&String(m.data.id||'');if(id&&/^[a-z0-9]{1,24}$/.test(id)&&id!==ROUND)newRound(id);});}catch(e){}
+    try{room.on('bank',function(m){var b=m&&m.data&&m.data.b;if(b&&!isT&&(+b.ver||0)!==APPLIED)applyBank(b);});}catch(e){}
+    if(r.round&&/^[a-z0-9]{1,24}$/.test(String(r.round))&&String(r.round)!==ROUND)newRound(String(r.round));
+    if(r.bank&&!isT)applyBank(r.bank);
+    if(isT){
+      try{room.on('banksaved',function(m){var d=m&&m.data||{};QB.msg=d.store?(d.ok?'Saved online 已保存到网上':'Could not save online 无法保存到网上'):'';if(!$('qb').hidden)qbRender();if(d.store&&!d.ok)toast('Could not save your questions online. Check the Upstash settings.','无法把题目保存到网上。请检查 Upstash 设置。',6000);});}catch(e){}
+      if(r.bank&&adoptBank(r.bank)){}
+      else if(r.publishBank&&BANK.ver&&(!r.bank||(+r.bank.ver||0)<BANK.ver))publishBank();
+    }
     try{room.onConnection(function(ok){connected=ok;updateHud();});}catch(e){}
     room.onPeers(onPeers,function(){room=null;});
     try{room.on('say',function(m){var t=m&&m.data&&m.data.t;if(typeof t!=='string')return;t=t.replace(/[\u0000-\u001f<>]/g,'').slice(0,140);if(t)announce(t);});}catch(e){}
@@ -1769,7 +1834,7 @@ function renderMon(){
   h+='<div class="bi">'+bi('Pupils: '+list.length+' · Average points: '+(list.length?Math.round(tot/list.length):0)+' · All 22 clues found: '+full,'学生：'+list.length+' · 平均分：'+(list.length?Math.round(tot/list.length):0)+' · 已找齐 22 个线索：'+full)+'</div>';
   h+='<div class="row"><b>'+bi('Goal per pupil','每人目标分')+'</b>';
   [40,80,120].forEach(function(g){h+='<button class="sm" data-m="goal" data-v="'+g+'" aria-pressed="'+(goalPer===g?'true':'false')+'">'+g+'</button>';});
-  h+='</div><div class="row"><b>'+bi('Sort','排序')+'</b><button class="sm" data-m="sort" data-v="help" aria-pressed="'+(monSort==='help'?'true':'false')+'">'+bi('Needs help first','先看需要帮助的')+'</button><button class="sm" data-m="sort" data-v="pts" aria-pressed="'+(monSort==='pts'?'true':'false')+'">'+bi('Most points','分数最高')+'</button></div>';
+  h+='</div><div class="row"><button class="sm" data-m="newround">🔄 '+bi('New round','新一轮')+'</button><button class="sm" data-m="bank">📚 '+bi('Questions','题库')+'</button></div>'+(won?'<div class="bi">'+bi('🎉 The bees are home. Press New round so everyone can play again.','🎉 蜜蜂回家了。按“新一轮”，大家就能再玩一次。')+'</div>':'')+'<div class="row"><b>'+bi('Sort','排序')+'</b><button class="sm" data-m="sort" data-v="help" aria-pressed="'+(monSort==='help'?'true':'false')+'">'+bi('Needs help first','先看需要帮助的')+'</button><button class="sm" data-m="sort" data-v="pts" aria-pressed="'+(monSort==='pts'?'true':'false')+'">'+bi('Most points','分数最高')+'</button></div>';
   h+='<div class="row">';PRESETS.forEach(function(x,i){h+='<button class="sm" data-m="say" data-v="'+i+'">📢 '+esc(x[0].split(' ').slice(0,3).join(' '))+'…</button>';});h+='</div>';
   h+='<div class="row"><input id="mon-say" maxlength="120" placeholder="Message to everyone 给大家的话" aria-label="Message to everyone"><button class="sm" data-m="send">📢 '+bi('Send','发送')+'</button></div>';
   h+='<ul>';
@@ -1787,6 +1852,8 @@ $('mon').addEventListener('click',function(e){
   var b=e.target.closest('[data-m]');if(!b)return;var a=b.getAttribute('data-m'),v=b.getAttribute('data-v');
   if(a==='sort'){monSort=v;renderMon();}
   else if(a==='goal'){goalPer=+v;sendGoal();updateHud();renderMon();toast('Goal set to '+v+' points per pupil.','目标已设为每人 '+v+' 分。',2000);}
+  else if(a==='newround'){startNewRound();}
+  else if(a==='bank'){qbOpen();}
   else if(a==='say'){sendSay(PRESETS[+v][0]);}
   else if(a==='send'){var i=$('mon-say');if(i.value.trim()){sendSay(i.value.trim());i.value='';}}
 });
@@ -1798,6 +1865,362 @@ function sendSay(t){
 }
 setInterval(function(){renderMon();},2500);
 $('b-class').addEventListener('click',function(){var m=$('mon');m.hidden=!m.hidden;renderMon();});
+
+/* ---------- teacher: question bank (review, edit, hide, add, export, publish to class) ---------- */
+var BASEQ=JSON.parse(JSON.stringify(PQ));
+var TAGS_OK=['cap','stop','comma','apos'];
+var TAGN={cap:'Capitals 大写',stop:'Full stops/marks 句末标点',comma:'Commas 逗号',apos:'Apostrophes 撇号'};
+var TYPEN={pick:'Choose the sentence 选句子',word:'Fill the gap 填空',mark:'Choose the mark 选标点',tap:'Tap the words 点词'};
+var BANK={v:1,ver:0,edits:{},off:{},added:[]},APPLIED=0,PUBAT=0;
+function s1(v,n){return String(v==null?'':v).replace(/[\u0000-\u001f]/g,' ').slice(0,n);}
+function bx(o,n){
+  if(!o||typeof o!=='object')return null;
+  var en=s1(o.en,n).trim(),zh=s1(o.zh,n).trim();
+  if(!en&&!zh)return null;
+  return {en:en||zh,zh:zh||en};
+}
+/* every question that comes from outside (a file, or the teacher over the network) goes through here first */
+function cleanQ(q,id){
+  if(!q||typeof q!=='object')return null;
+  var ty=q.type;if(ty!=='pick'&&ty!=='word'&&ty!=='mark'&&ty!=='tap')return null;
+  var o={id:id,lvl:clamp(Math.round(+q.lvl)||1,1,3),tags:[],type:ty};
+  (Array.isArray(q.tags)?q.tags:[]).forEach(function(t){if(TAGS_OK.indexOf(t)>=0&&o.tags.indexOf(t)<0)o.tags.push(t);});
+  o.art=s1(q.art,6).replace(/[<>&"'`]/g,'').trim()||'❓';
+  var en=s1(q.en,160).trim();if(!en)return null;
+  o.en=en;o.zh=s1(q.zh,160).trim()||en;
+  o.full=s1(q.full,200).trim();if(!o.full)return null;
+  o.hint=bx(q.hint,200)||{en:'Read it again slowly.',zh:'再慢慢读一遍。'};
+  o.why=bx(q.why,260)||{en:o.full,zh:o.full};
+  if(ty==='tap'){
+    if(!Array.isArray(q.words)||q.words.length<2||q.words.length>14)return null;
+    o.words=q.words.map(function(w){return s1(w,24).replace(/\s+/g,'');});
+    if(o.words.some(function(w){return !w;}))return null;
+    var need=[];
+    (Array.isArray(q.need)?q.need:[]).forEach(function(i){i=Math.floor(+i);if(i>=0&&i<o.words.length&&need.indexOf(i)<0)need.push(i);});
+    if(!need.length)return null;
+    o.need=need.sort(function(a,b){return a-b;});
+    return o;
+  }
+  if(!Array.isArray(q.opts)||q.opts.length<2||q.opts.length>4)return null;
+  var dup={};o.opts=[];
+  for(var i=0;i<q.opts.length;i++){
+    var r=q.opts[i];if(!r||typeof r!=='object')return null;
+    var t=s1(r.t,120);if(!t.trim()||dup[t])return null;dup[t]=1;
+    var oo={t:t,x:bx(r.x,200)};
+    if(ty==='mark')oo.n=bx(r.n,40)||{en:t,zh:t};
+    o.opts.push(oo);
+  }
+  o.ans=Math.floor(+q.ans);if(!(o.ans>=0&&o.ans<o.opts.length))return null;
+  if(ty==='word'||ty==='mark'){o.pre=s1(q.pre,120);o.post=s1(q.post,120);}
+  if(ty==='pick'&&q.show)o.show=s1(q.show,160);
+  return o;
+}
+function cloneQ(q){return JSON.parse(JSON.stringify(q));}
+function bankList(b){
+  var list=[];
+  b=b||{};
+  BASEQ.forEach(function(q){
+    if(b.off&&b.off[q.id])return;
+    var e=b.edits&&b.edits[q.id],c=e?cleanQ(e,q.id):null;
+    list.push(c||cloneQ(q));
+  });
+  (Array.isArray(b.added)?b.added:[]).slice(0,80).forEach(function(a){
+    if(!a||typeof a!=='object')return;
+    var id=Math.floor(+a.id);if(!(id>=1000&&id<100000))return;
+    if(b.off&&b.off[id])return;
+    var c=cleanQ(a,id);if(c)list.push(c);
+  });
+  return list;
+}
+function applyBank(b){
+  if(!b||typeof b!=='object')return;
+  var ids=STONES.map(function(s){return s.q>=0&&PQ[s.q]?PQ[s.q].id:null;});
+  var list=bankList(b);if(list.length<12)list=bankList({});
+  PQ.length=0;list.forEach(function(q){PQ.push(q);});
+  APPLIED=+b.ver||0;
+  buildSeq();
+  STONES.forEach(function(s,i){
+    if(ids[i]===null)return;
+    var ni=-1;for(var j=0;j<PQ.length;j++)if(PQ[j].id===ids[i])ni=j;
+    s.q=(ni>=0&&!S.solved[ids[i]])?ni:-1;
+    if(s.q===-1)s.cool=0;
+  });
+  STONES.forEach(function(s){if(s.q===-1&&s.cool===0)s.q=nextQ();});
+}
+function adoptBank(b){
+  if(!b||typeof b!=='object'||(+b.ver||0)<=(BANK.ver||0))return false;
+  var nb={v:1,ver:+b.ver||0,edits:(b.edits&&typeof b.edits==='object')?b.edits:{},off:(b.off&&typeof b.off==='object')?b.off:{},added:Array.isArray(b.added)?b.added.slice(0,80):[]};
+  if(bankList(nb).length<12)return false;
+  BANK=nb;saveBank();applyBank(BANK);
+  if(!$('qb').hidden)qbRender();
+  return true;
+}
+function saveBank(){try{localStorage.setItem('bz-bank',JSON.stringify(BANK));}catch(e){}}
+function loadBank(){
+  try{
+    var o=JSON.parse(localStorage.getItem('bz-bank')||'null');
+    if(o&&typeof o==='object')BANK={v:1,ver:+o.ver||0,edits:(o.edits&&typeof o.edits==='object')?o.edits:{},off:(o.off&&typeof o.off==='object')?o.off:{},added:Array.isArray(o.added)?o.added:[]};
+  }catch(e){}
+  if(BANK.ver)applyBank(BANK);
+}
+function publishBank(){
+  if(room&&isT&&room.publishBank){try{room.publishBank(BANK);PUBAT=Date.now();return true;}catch(e){}}
+  return false;
+}
+function commitBank(){
+  BANK.ver=Date.now();saveBank();applyBank(BANK);publishBank();qbRender();
+}
+
+/* --- screen --- */
+var QB={filter:'0',text:'',edit:null,D:null,err:'',msg:'',adding:false};
+function qbOpen(){$('qb').hidden=false;QB.edit=null;QB.D=null;QB.err='';QB.adding=false;qbRender();}
+function qbClose(){$('qb').hidden=true;document.body.classList.remove('qbprint');}
+function curOf(id){
+  var e=BANK.edits&&BANK.edits[id],c=e?cleanQ(e,id):null;
+  if(c)return c;
+  for(var i=0;i<BASEQ.length;i++)if(BASEQ[i].id===id)return BASEQ[i];
+  for(i=0;i<BANK.added.length;i++)if(+BANK.added[i].id===id)return cleanQ(BANK.added[i],id);
+  return null;
+}
+function qbRows(){
+  var rows=[];
+  BASEQ.forEach(function(q){rows.push({id:q.id,base:true});});
+  BANK.added.forEach(function(a){var id=Math.floor(+a.id);if(cleanQ(a,id))rows.push({id:id,base:false});});
+  return rows;
+}
+function qaHtml(q){
+  var h='';
+  if(q.type==='tap'){
+    h+='<div class="qw">'+q.words.map(function(w,i){return '<span class="'+(q.need.indexOf(i)>=0?'ok':'')+'">'+esc(w)+'</span>';}).join(' ')+'</div><small>Green = pupils must tap these 绿色 = 需要点的词</small>';
+  }else{
+    if(q.type!=='pick')h+='<div class="qs">'+esc(q.pre||'')+' <b>____</b> '+esc(q.post||'')+'</div>';
+    if(q.show)h+='<div class="qs">“'+esc(q.show)+'”</div>';
+    h+='<ol class="qo">'+q.opts.map(function(o,i){return '<li class="'+(i===q.ans?'ok':'')+'">'+(i===q.ans?'✓ ':'')+esc(o.t)+(q.type==='mark'?' <small>('+esc(o.n.en)+')</small>':'')+(o.x&&i!==q.ans?'<small> — '+esc(o.x.en)+'</small>':'')+'</li>';}).join('')+'</ol>';
+  }
+  return h+'<div class="qf">✔ '+esc(q.full)+'</div><div class="qy"><small>💡 '+esc(q.why.en)+'</small></div>';
+}
+function qbRender(){
+  var box=$('qb'),rows=qbRows(),active=0;
+  rows.forEach(function(r){if(!BANK.off[r.id])active++;});
+  var h='<div class="qbc">';
+  h+='<div class="qh"><h2>📚 '+bi('Question bank','题库')+'</h2><button class="sm" data-b="close">✖ '+bi('Close','关闭')+'</button></div>';
+  h+='<p class="small bi">'+bi('Check every question and its correct answer (✓). Edit, hide, or add your own. Pupils get your changes when you are logged in as teacher in your class room. '+active+' active of '+rows.length+'.','在这里检查每道题和正确答案（✓），也可以修改、隐藏或增加自己的题目。你以老师身份进入班级时，学生会收到你的改动。目前使用中：'+active+' / '+rows.length+'。')+'</p>';
+  var pub=(room&&isT&&room.publishBank)?(room.store?'Connected. Your questions are saved online, so they work on any computer. 题目已保存到网上，在任何电脑上都能用。':'Connected, but online saving is not set up yet, so changes stay on this device. 已连接，但尚未设置网上保存。'):'Saved on this device. Start the game as teacher in your class to send changes to pupils and save them online. 已保存在这台设备上。请以老师身份进入班级，才能发送给学生并保存到网上。';
+  h+='<p class="small" role="status">'+esc(pub)+(QB.msg?' · '+esc(QB.msg):'')+'</p>';
+  if(QB.edit===null){
+    h+='<div class="qtools"><span class="lab">Level 级别</span>';
+    [['0','All'],['1','1 Easy'],['2','2 Medium'],['3','3 Hard']].forEach(function(f){h+='<button class="sm" data-b="filter" data-v="'+f[0]+'" aria-pressed="'+(QB.filter===f[0]?'true':'false')+'">'+f[1]+'</button>';});
+    h+='<input id="qb-search" placeholder="Search 搜索" value="'+esc(QB.text)+'" aria-label="Search questions"></div>';
+    h+='<div class="qtools"><button class="sm" data-b="add">➕ Add question 增加题目</button><button class="sm" data-b="publish">📢 Send to class 发送给全班</button><button class="sm" data-b="export">⬇ Save file 保存文件</button><button class="sm" data-b="import">⬆ Load file 载入文件</button><button class="sm" data-b="print">🖨 Print / PDF 打印</button><button class="sm" data-b="resetall">↺ Original 恢复原题</button><input type="file" id="qb-file" accept=".json,application/json" hidden></div>';
+    if(QB.adding){
+      h+='<div class="qadd"><b>New question type 新题类型</b>';
+      ['pick','word','mark','tap'].forEach(function(t){h+='<button class="sm" data-b="new" data-v="'+t+'">'+esc(TYPEN[t])+'</button>';});
+      h+='<button class="sm" data-b="canceladd">Cancel</button></div>';
+    }
+    var n=0,tx=QB.text.trim().toLowerCase();
+    rows.forEach(function(r){
+      var q=curOf(r.id);if(!q)return;
+      if(QB.filter!=='0'&&String(q.lvl)!==QB.filter)return;
+      if(tx&&(('#'+r.id+' '+q.en+' '+q.zh+' '+q.full+' '+(q.opts?q.opts.map(function(o){return o.t;}).join(' '):'')).toLowerCase().indexOf(tx)<0))return;
+      n++;
+      var off=!!BANK.off[r.id],ed=!!(BANK.edits&&BANK.edits[r.id]);
+      h+='<article class="qr'+(off?' off':'')+'" data-id="'+r.id+'"><header><b>#'+r.id+'</b><span class="pill">L'+q.lvl+'</span><span class="pill">'+esc(TYPEN[q.type])+'</span>'+(off?'<span class="pill">Hidden 已隐藏</span>':'')+(ed?'<span class="pill">Edited 已修改</span>':'')+(!r.base?'<span class="pill">New 新题</span>':'')+'<span class="sp"></span><button class="sm" data-b="edit">✏ Edit</button><button class="sm" data-b="hide">'+(off?'👁 Show':'🙈 Hide')+'</button>'+(ed?'<button class="sm" data-b="revert">↺ Original</button>':'')+(!r.base?'<button class="sm" data-b="del">🗑 Delete</button>':'')+'</header>';
+      h+='<div class="qp">'+esc(q.art)+' '+esc(q.en)+'<br><small>'+esc(q.zh)+'</small></div>'+qaHtml(q)+'</article>';
+    });
+    if(!n)h+='<p>No questions match. 没有符合的题目。</p>';
+  }else h+=qbForm();
+  h+='</div>';
+  var sc=box.scrollTop,focus=document.activeElement&&document.activeElement.id==='qb-search';
+  box.innerHTML=h;box.scrollTop=sc;
+  if(focus){var si=$('qb-search');si.focus();si.setSelectionRange(si.value.length,si.value.length);}
+}
+
+/* --- editor --- */
+function newDraft(ty){
+  var D={id:0,isNew:true,type:ty,lvl:1,tags:[],art:'📝',en:'',zh:'',pre:'',post:'',show:'',opts:[],ans:0,words:'',need:{},full:'',hen:'',hzh:'',wen:'',wzh:''};
+  function op(t){return {t:t||'',xen:'',xzh:'',nen:'',nzh:''};}
+  if(ty==='pick'){D.en='Which sentence is written correctly?';D.zh='哪一个句子写得正确？';D.opts=[op(),op(),op()];}
+  else if(ty==='word'){D.en='Choose the right word to fill the gap.';D.zh='选出正确的词来填空。';D.opts=[op(),op(),op()];}
+  else if(ty==='mark'){D.en='Which mark goes at the end of this sentence?';D.zh='这个句子的末尾应该用哪个标点符号？';D.opts=[op('.'),op('?'),op('!')];D.opts[0].nen='full stop';D.opts[0].nzh='句号';D.opts[1].nen='question mark';D.opts[1].nzh='问号';D.opts[2].nen='exclamation mark';D.opts[2].nzh='感叹号';}
+  else{D.en='Tap the words that need a capital letter. Then press Check.';D.zh='点一点需要大写的词，然后按“检查答案”。';}
+  return D;
+}
+function draftFrom(q){
+  var D=newDraft(q.type);
+  D.id=q.id;D.isNew=false;D.lvl=q.lvl;D.tags=q.tags.slice();D.art=q.art;D.en=q.en;D.zh=q.zh;D.full=q.full;
+  D.hen=q.hint.en;D.hzh=q.hint.zh;D.wen=q.why.en;D.wzh=q.why.zh;
+  if(q.type==='tap'){D.words=q.words.join(' ');D.need={};q.need.forEach(function(i){D.need[i]=true;});}
+  else{
+    D.pre=q.pre||'';D.post=q.post||'';D.show=q.show||'';D.ans=q.ans;
+    D.opts=q.opts.map(function(o){return {t:o.t,xen:o.x?o.x.en:'',xzh:o.x?o.x.zh:'',nen:o.n?o.n.en:'',nzh:o.n?o.n.zh:''};});
+  }
+  return D;
+}
+function draftWords(D){return D.words.split(/\s+/).filter(function(w){return w;});}
+function autoFull(D){
+  if(D.type==='pick')return D.opts[D.ans]?D.opts[D.ans].t:'';
+  if(D.type==='word')return [D.pre,D.opts[D.ans]?D.opts[D.ans].t:'',D.post].filter(function(x){return x;}).join(' ').replace(/\s+/g,' ').trim();
+  if(D.type==='mark')return (D.pre+(D.opts[D.ans]?D.opts[D.ans].t:'')+D.post).trim();
+  return D.full;
+}
+function draftToQ(D){
+  var q={id:D.id,lvl:D.lvl,tags:D.tags,type:D.type,art:D.art,en:D.en,zh:D.zh,hint:{en:D.hen,zh:D.hzh},why:{en:D.wen||autoFull(D),zh:D.wzh||D.wen||autoFull(D)}};
+  q.full=D.type==='tap'?D.full:autoFull(D);
+  if(D.type==='tap'){q.words=draftWords(D);q.need=[];q.words.forEach(function(w,i){if(D.need[i])q.need.push(i);});}
+  else{
+    q.ans=D.ans;q.pre=D.pre;q.post=D.post;if(D.type==='pick')q.show=D.show;
+    q.opts=D.opts.map(function(o,i){var r={t:o.t,x:(i!==D.ans&&(o.xen||o.xzh))?{en:o.xen,zh:o.xzh}:null};if(D.type==='mark')r.n={en:o.nen||o.t,zh:o.nzh||o.nen||o.t};return r;});
+  }
+  return q;
+}
+function draftCheck(D){
+  if(!D.en.trim())return 'Please type the question. 请输入问题。';
+  if(D.type==='tap'){
+    var w=draftWords(D);if(w.length<2)return 'Type the sentence with at least 2 words. 请输入至少两个词的句子。';
+    if(w.length>14)return 'Use 14 words or fewer. 最多 14 个词。';
+    if(!w.some(function(x,i){return D.need[i];}))return 'Tick the word(s) pupils must tap. 请勾选需要点的词。';
+    if(!D.full.trim())return 'Type the corrected sentence. 请输入改正后的句子。';
+    return '';
+  }
+  if(D.opts.length<2)return 'Add at least 2 answer choices. 至少要有两个选项。';
+  var seenT={};
+  for(var i=0;i<D.opts.length;i++){
+    if(!D.opts[i].t.trim())return 'Every choice needs text. 每个选项都要填写。';
+    if(seenT[D.opts[i].t])return 'Two choices are the same. 有两个选项相同。';
+    seenT[D.opts[i].t]=1;
+  }
+  if(!(D.ans>=0&&D.ans<D.opts.length))return 'Choose the correct answer. 请选择正确答案。';
+  if(D.type!=='pick'&&!D.pre.trim()&&!D.post.trim())return 'Type the words around the gap. 请输入空格前后的词。';
+  return '';
+}
+function fi(label,f,val,ph,ml){return '<label class="qfld"><span>'+label+'</span><input data-f="'+f+'" value="'+esc(val)+'" maxlength="'+(ml||200)+'"'+(ph?' placeholder="'+esc(ph)+'"':'')+'></label>';}
+function qbForm(){
+  var D=QB.D,h='<div class="qform"><h3>'+(D.isNew?'➕ New question 新题':'✏ Edit question #'+D.id+' 修改题目')+' · '+esc(TYPEN[D.type])+'</h3>';
+  h+='<div class="qtools"><label>Level 级别 <select data-f="lvl">'+[1,2,3].map(function(l){return '<option value="'+l+'"'+(D.lvl===l?' selected':'')+'>'+l+' '+['','Easy','Medium','Hard'][l]+'</option>';}).join('')+'</select></label>';
+  h+='<span class="lab">Topic 主题</span>'+TAGS_OK.map(function(t){return '<label class="chk"><input type="checkbox" data-f="tag" data-v="'+t+'"'+(D.tags.indexOf(t)>=0?' checked':'')+'> '+esc(TAGN[t])+'</label>';}).join('')+'</div>';
+  h+=fi('Picture (emoji) 图案','art',D.art,'',6)+fi('Question (English) 问题','en',D.en)+fi('Question (中文) 问题','zh',D.zh,'Leave empty to copy English 留空则使用英文');
+  if(D.type==='tap'){
+    h+=fi('Sentence, wrong version, words separated by spaces 句子（错误版本，词与词之间用空格）','words',D.words,'We visited paris last summer.');
+    var ws=draftWords(D);
+    h+='<div class="qw">'+ws.map(function(w,i){return '<label class="chk"><input type="checkbox" data-f="need" data-v="'+i+'"'+(D.need[i]?' checked':'')+'> '+esc(w)+'</label>';}).join('')+'</div><small>Tick the words pupils must tap 勾选需要点的词</small>';
+    h+=fi('Corrected sentence 改正后的句子','full',D.full,'We visited Paris last summer.');
+  }else{
+    if(D.type!=='pick')h+=fi('Words before the gap/mark 空格前的词','pre',D.pre)+fi('Words after 空格后的词','post',D.post);
+    else h+=fi('Sentence to show (optional) 显示的句子（可不填）','show',D.show);
+    h+='<div class="qopts"><b>Choices — select the correct one 选项（选中正确答案）</b>';
+    D.opts.forEach(function(o,i){
+      h+='<div class="qopt"><label class="chk"><input type="radio" name="qans" data-f="ans" data-v="'+i+'"'+(D.ans===i?' checked':'')+' aria-label="Correct answer"> ✓</label>'+fi('Choice '+(i+1)+' 选项','ot'+i,o.t,'',120);
+      if(D.type==='mark')h+=fi('Name EN','on'+i+'e',o.nen,'',40)+fi('名称','on'+i+'z',o.nzh,'',40);
+      if(D.ans!==i)h+=fi('Why wrong (EN) 错误原因','ox'+i+'e',o.xen,'optional')+fi('错误原因（中文）','ox'+i+'z',o.xzh,'');
+      if(D.opts.length>2)h+='<button class="sm" data-b="rmopt" data-v="'+i+'">Remove 删除</button>';
+      h+='</div>';
+    });
+    if(D.opts.length<4)h+='<button class="sm" data-b="addopt">➕ Add choice 增加选项</button>';
+    h+='</div><div class="qf">Correct answer shown to pupils 给学生看的正确答案: <b>'+esc(autoFull(D))+'</b></div>';
+  }
+  h+=fi('Hint (EN) 提示','hen',D.hen,'optional')+fi('提示（中文）','hzh',D.hzh,'')+fi('Explanation (EN) 解释','wen',D.wen,'optional')+fi('解释（中文）','wzh',D.wzh,'');
+  h+=(QB.err?'<p class="qerr" role="alert">⚠ '+esc(QB.err)+'</p>':'')+'<div class="qtools"><button class="sm go" data-b="save">💾 Save 保存</button><button class="sm" data-b="cancel">Cancel 取消</button></div></div>';
+  return h;
+}
+function qbField(el){
+  var D=QB.D,f=el.getAttribute('data-f'),v=el.value,m;
+  if(f==='lvl')D.lvl=+v;
+  else if(f==='tag'){var t=el.getAttribute('data-v'),k=D.tags.indexOf(t);if(el.checked&&k<0)D.tags.push(t);if(!el.checked&&k>=0)D.tags.splice(k,1);}
+  else if(f==='need'){D.need[+el.getAttribute('data-v')]=el.checked;}
+  else if(f==='ans'){D.ans=+el.getAttribute('data-v');return true;}
+  else if(f==='words'){D.words=v;if(!D.full)D.full='';return 'words';}
+  else if((m=/^ot(\d)$/.exec(f)))D.opts[+m[1]].t=v;
+  else if((m=/^ox(\d)e$/.exec(f)))D.opts[+m[1]].xen=v;
+  else if((m=/^ox(\d)z$/.exec(f)))D.opts[+m[1]].xzh=v;
+  else if((m=/^on(\d)e$/.exec(f)))D.opts[+m[1]].nen=v;
+  else if((m=/^on(\d)z$/.exec(f)))D.opts[+m[1]].nzh=v;
+  else if(f in D)D[f]=v;
+  return false;
+}
+function qbSaveDraft(){
+  var D=QB.D,err=draftCheck(D);
+  if(err){QB.err=err;qbRender();return;}
+  var q=cleanQ(draftToQ(D),D.id||1);
+  if(!q){QB.err='This question is not complete yet. 这道题还没填完整。';qbRender();return;}
+  if(D.isNew){
+    var mx=999;BANK.added.forEach(function(a){if(+a.id>mx)mx=+a.id;});
+    q.id=mx+1;BANK.added.push(q);
+  }else if(D.id>=1000){
+    for(var i=0;i<BANK.added.length;i++)if(+BANK.added[i].id===D.id)BANK.added[i]=q;
+  }else BANK.edits[D.id]=q;
+  QB.edit=null;QB.D=null;QB.err='';QB.msg='Saved 已保存';
+  commitBank();
+}
+function qbAction(b){
+  var a=b.getAttribute('data-b'),v=b.getAttribute('data-v'),row=b.closest('[data-id]'),id=row?+row.getAttribute('data-id'):0;
+  if(a==='close')qbClose();
+  else if(a==='filter'){QB.filter=v;qbRender();}
+  else if(a==='add'){QB.adding=true;qbRender();}
+  else if(a==='canceladd'){QB.adding=false;qbRender();}
+  else if(a==='new'){QB.D=newDraft(v);QB.edit=0;QB.adding=false;QB.err='';qbRender();}
+  else if(a==='edit'){var q=curOf(id);if(q){QB.D=draftFrom(q);QB.edit=id;QB.err='';qbRender();$('qb').scrollTop=0;}}
+  else if(a==='cancel'){QB.edit=null;QB.D=null;QB.err='';qbRender();}
+  else if(a==='save')qbSaveDraft();
+  else if(a==='addopt'){QB.D.opts.push({t:'',xen:'',xzh:'',nen:'',nzh:''});qbRender();}
+  else if(a==='rmopt'){var i=+v;QB.D.opts.splice(i,1);if(QB.D.ans>=QB.D.opts.length)QB.D.ans=0;else if(QB.D.ans>i)QB.D.ans--;qbRender();}
+  else if(a==='hide'){
+    if(BANK.off[id]){delete BANK.off[id];QB.msg='';commitBank();}
+    else{var act2=qbRows().filter(function(r){return !BANK.off[r.id];}).length;
+      if(act2<=14){QB.msg='Keep at least 14 questions active. 至少要保留 14 道题。';qbRender();}
+      else{BANK.off[id]=1;QB.msg='';commitBank();}}
+  }
+  else if(a==='revert'){delete BANK.edits[id];commitBank();}
+  else if(a==='del'){
+    if(!confirm('Delete this question for good? 要永久删除这道题吗？'))return;
+    BANK.added=BANK.added.filter(function(x){return +x.id!==id;});delete BANK.off[id];commitBank();
+  }
+  else if(a==='publish'){if(publishBank()){QB.msg='Sent 已发送';}else QB.msg='Not connected as teacher 未以老师身份进入班级';qbRender();}
+  else if(a==='resetall'){
+    if(!confirm('Go back to the original 59 questions? Your edits and added questions will be removed. 要恢复原来的 59 道题吗？你的修改和新增题目会被清除。'))return;
+    BANK={v:1,ver:0,edits:{},off:{},added:[]};commitBank();
+  }
+  else if(a==='export'){
+    try{var blob=new Blob([JSON.stringify(BANK,null,1)],{type:'application/json'}),u=URL.createObjectURL(blob),l=document.createElement('a');l.href=u;l.download='buzz-off-garden-questions.json';document.body.appendChild(l);l.click();setTimeout(function(){URL.revokeObjectURL(u);l.remove();},500);}catch(e){}
+  }
+  else if(a==='import'){$('qb-file').click();}
+  else if(a==='print'){document.body.classList.add('qbprint');setTimeout(function(){try{window.print();}catch(e){}setTimeout(function(){document.body.classList.remove('qbprint');},400);},60);}
+}
+$('qb').addEventListener('click',function(e){
+  if(e.target===$('qb')){qbClose();return;}
+  var b=e.target.closest('[data-b]');if(b)qbAction(b);
+});
+$('qb').addEventListener('keydown',function(e){e.stopPropagation();if(e.key==='Escape')qbClose();});
+$('qb').addEventListener('keyup',function(e){e.stopPropagation();});
+$('qb').addEventListener('input',function(e){
+  var t=e.target;
+  if(t.id==='qb-search'){QB.text=t.value;qbRender();return;}
+  if(!QB.D||!t.getAttribute('data-f'))return;
+  var r=qbField(t);
+  if(r==='words'){var k=t.selectionStart;qbRender();var el=document.querySelector('#qb [data-f="words"]');if(el){el.focus();el.setSelectionRange(k,k);}}
+});
+$('qb').addEventListener('change',function(e){
+  var t=e.target;
+  if(t.id==='qb-file'){
+    var f=t.files&&t.files[0];if(!f)return;
+    if(f.size>300000){QB.msg='File too big 文件太大';qbRender();return;}
+    var rd=new FileReader();
+    rd.onload=function(){
+      try{
+        var o=JSON.parse(String(rd.result));
+        if(!o||typeof o!=='object')throw 0;
+        var nb={v:1,ver:0,edits:(o.edits&&typeof o.edits==='object')?o.edits:{},off:(o.off&&typeof o.off==='object')?o.off:{},added:Array.isArray(o.added)?o.added.slice(0,80):[]};
+        if(bankList(nb).length<12)throw 0;
+        BANK=nb;QB.msg='Loaded 已载入';commitBank();
+      }catch(x){QB.msg='That file is not a question file. 这不是题库文件。';qbRender();}
+      t.value='';
+    };
+    rd.readAsText(f);return;
+  }
+  if(!QB.D||!t.getAttribute('data-f'))return;
+  var r=qbField(t);
+  if(r===true||t.getAttribute('data-f')==='words')qbRender();
+});
+$('qbopen').addEventListener('click',qbOpen);
 
 /* ---------- toolbar and lobby ---------- */
 function setLang(l){
@@ -1825,7 +2248,7 @@ function paintChars(){[].forEach.call(chars.children,function(b,i){b.setAttribut
 paintChars();$('nick').value=P.name;$('code').value=P.code;setLang(L);
 $('code').addEventListener('input',function(){var c=cleanCode(this.value);if(c!==this.value.toLowerCase()||this.value!==c){var bad=this.value.toLowerCase()!==c;this.value=c;if(bad)toast('Small letters and numbers only, no spaces.','只能用小写字母和数字，不要空格。',2200);}});
 
-(async function(){try{U=(window.claude&&window.claude.use)?await window.claude.use('user'):null;if(U&&U.canEdit){var ce=await U.canEdit();canTeach=ce===true;$('teachrow').hidden=!canTeach;}}catch(e){}})();
+(async function(){try{U=(window.claude&&window.claude.use)?await window.claude.use('user'):null;if(U&&U.canEdit){var ce=await U.canEdit();canTeach=ce===true;$('teachrow').hidden=!canTeach;$('qbopen').hidden=!canTeach;if(canTeach){loadBank();try{fetch('bank',{cache:'no-store'}).then(function(r){return r.json();}).then(function(j){if(j&&j.bank)adoptBank(j.bank);}).catch(function(){});}catch(e){}}}}catch(e){}})();
 $('go').addEventListener('click',function(){
   isT=!!($('isteacher').checked&&canTeach);act=isT?'t':'w';
   P.name=cleanName($('nick').value);if(!$('nick').value.trim())P.name=isT?'Teacher':CH[P.ch].e+' '+['Cat','Dog','Bunny','Panda','Fox','Frog','Owl','Lion'][P.ch];
@@ -1849,6 +2272,6 @@ $('go').addEventListener('click',function(){
 });
 addEventListener('visibilitychange',function(){if(document.hidden){Music.suspend();TTS.cancel();}else Music.resume();});
 requestAnimationFrame(frame);
-window.__bz={goal:function(){return goalPer;},isT:function(){return isT;},S:S,P:P,CLUES:CLUES,STONES:STONES,remotes:remotes,me:me,teamTotal:teamTotal,progress:progress,openItem:openItem,PQ:PQ};
+window.__bz={goal:function(){return goalPer;},isT:function(){return isT;},S:S,P:P,CLUES:CLUES,STONES:STONES,remotes:remotes,me:me,teamTotal:teamTotal,progress:progress,openItem:openItem,PQ:PQ,addPts:addPts,round:function(){return ROUND;},won:function(){return won;},bank:function(){return BANK;},beesLeft:beesLeft};
 })();
 </script>
