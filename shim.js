@@ -10,7 +10,7 @@ function wsUrl(){
 function Room(name){
   var self=this;
   name=String(name||'').toLowerCase().replace(/^bz-/,'').replace(/[^a-z0-9]/g,'').slice(0,12);
-  self.isAdmin=false;self.round='';self.bank=null;self.store=false;var lastBank=null;
+  self.isAdmin=false;self.round='';self.bank=null;self.store=false;self.isOwner=false;self.wait=false;var lastBank=null;
   var sock=null,open=false,dead=false,backoff=800,lastPres=null,pinSent='';
   var peers={};            // id -> presence
   var peerCbs=[],connCbs=[],topicCbs={};
@@ -33,7 +33,7 @@ function Room(name){
     s.onmessage=function(ev){
       var m;try{m=JSON.parse(ev.data);}catch(e){return;}
       if(m.t==='welcome'){
-        myId=m.id;self.isAdmin=!!m.admin;self.round=m.round||'';self.bank=m.bank||null;self.store=!!m.store;open=true;backoff=800;
+        myId=m.id;self.isAdmin=!!m.admin;self.round=m.round||'';self.bank=m.bank||null;self.store=!!m.store;self.isOwner=!!m.owner;self.wait=!!m.wait;open=true;backoff=800;
         if(firstJoin){var f=firstJoin;firstJoin=null;firstFail=null;f(self);}
         fireConn(true);
         if(lastPres)s.send(JSON.stringify({t:'pres',d:lastPres}));
@@ -52,6 +52,9 @@ function Room(name){
       }else if(m.t==='bank'){
         self.bank=m.b||null;
         (topicCbs.bank||[]).slice().forEach(function(f){try{f({topic:'bank',data:{b:m.b},peer:'',isMe:false,sameTab:false,by:null,kind:'viewer',guest:false});}catch(e){}});
+      }else if(m.t==='kicked'){
+        dead=true;
+        (topicCbs.kicked||[]).slice().forEach(function(f){try{f({topic:'kicked',data:{reason:m.reason||'kick'}});}catch(e){}});
       }else if(m.t==='bankok'){
         self.store=!!m.store;
         (topicCbs.banksaved||[]).slice().forEach(function(f){try{f({topic:'banksaved',data:{ok:!!m.ok,store:!!m.store}});}catch(e){}});
@@ -85,6 +88,8 @@ function Room(name){
     if(open)try{sock.send(JSON.stringify({t:'ev',topic:topic,data:data}));}catch(e){}
     return Promise.resolve();
   };
+  self.kick=function(id){if(open&&self.isAdmin){try{sock.send(JSON.stringify({t:'kick',id:id}));return true;}catch(e){}}return false;};
+  self.kickAll=function(){if(open&&self.isAdmin){try{sock.send(JSON.stringify({t:'kickall'}));return true;}catch(e){}}return false;};
   self.publishBank=function(b){lastBank=b;if(open&&self.isAdmin){try{sock.send(JSON.stringify({t:'bank',b:b}));}catch(e){}}};
   self.presence=function(o){
     lastPres=o;

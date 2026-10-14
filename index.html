@@ -176,6 +176,11 @@ body[data-lang="zh"] .en{display:none!important}
 @media (prefers-reduced-motion:reduce){#act{animation:none}.fx.pop{animation:none}}
 #qb{position:fixed;inset:0;z-index:60;background:rgba(35,51,28,.6);display:flex;justify-content:center;align-items:flex-start;padding:10px;overflow:auto}
 #qb[hidden]{display:none!important}
+#kicked{position:fixed;inset:0;z-index:90;background:rgba(35,51,28,.92);display:flex;align-items:center;justify-content:center;padding:1rem}
+#kicked[hidden]{display:none!important}
+#kicked .kc{background:var(--paper);border:4px solid var(--ink);border-radius:1.5rem;box-shadow:0 8px 0 var(--ink);max-width:30rem;padding:1.4rem;display:grid;gap:.9rem;text-align:center;color:var(--ink)}
+#kicked h2{margin:0;font-family:var(--f-disp)}
+#mon button.kick{min-height:1.6rem;margin-left:.4rem;padding:0 .5rem;font-size:.72rem}
 .qbbtn{min-height:2.6rem;padding:.2rem 1rem;border:3px solid var(--ink);border-radius:99px;background:#fff;font-weight:800;font-family:inherit;cursor:pointer}
 #qb .qbc{background:var(--paper);border:4px solid var(--ink);border-radius:1.2rem;box-shadow:0 8px 0 var(--ink);width:min(62rem,100%);padding:1rem;display:grid;gap:.7rem;color:var(--ink)}
 #qb .qh{display:flex;justify-content:space-between;align-items:center;gap:.5rem}#qb h2,#qb h3{margin:0;font-family:var(--f-disp)}
@@ -225,6 +230,7 @@ body.qbprint{overflow:visible!important;height:auto!important}
   </div>
   <div id="roster" class="chip" hidden></div>
   <div id="mon" class="chip" hidden></div>
+  <div id="kicked" hidden></div>
   <div id="qb" hidden role="dialog" aria-modal="true" aria-label="Question bank"></div>
   <div id="toast" role="status"></div>
   <div id="bottom" class="hud" hidden>
@@ -253,7 +259,7 @@ body.qbprint{overflow:visible!important;height:auto!important}
         <label><span class="lab"><span class="en">Nickname</span><span class="zh inl">昵称</span></span><input id="nick" maxlength="14" autocomplete="off" placeholder="e.g. Happy Fox"></label>
         <label><span class="lab"><span class="en">Class code</span><span class="zh inl">班级代码</span></span><input id="code" maxlength="12" autocomplete="off" autocapitalize="none" autocorrect="off" spellcheck="false" inputmode="text" placeholder="e.g. 3sun"></label>
       </div>
-      <label id="teachrow" class="teach" hidden><input type="checkbox" id="isteacher"> <span class="en">I am the teacher</span><span class="zh inl">我是老师</span><input id="tpin" type="password" autocomplete="off" maxlength="40" placeholder="Teacher PIN 教师密码" style="width:11rem;height:auto;padding:.3rem .5rem;border:2px solid var(--ink);border-radius:.6rem;font:inherit"></label>
+      <label id="teachrow" class="teach" hidden><input type="checkbox" id="isteacher"> <span class="en">I am the teacher</span><span class="zh inl">我是老师</span><input id="tpin" type="password" autocomplete="off" maxlength="40" placeholder="Teacher / admin PIN 教师/管理员密码" style="width:11rem;height:auto;padding:.3rem .5rem;border:2px solid var(--ink);border-radius:.6rem;font:inherit"></label>
       <button id="qbopen" type="button" class="qbbtn" hidden>📚 Question bank 题库</button>
       <p class="small" id="codehelp"><span class="en">Class code: small letters and numbers only, no spaces, like 3sun. Everyone in your class types the same code. Leave it empty to play on your own.</span><span class="zh">班级代码只能用小写字母和数字，不要空格，例如 3sun。同一个班的同学要输入相同的代码。留空就是自己玩。</span></p>
       <div>
@@ -1209,6 +1215,15 @@ function updateHud(){
     else{try{localStorage.setItem('bz-won',String(Date.now()));}catch(e){}celebrate(120);Music.sfx('done');TTS.say('Hooray! The bees have flown home. The garden is saved!','太棒了！蜜蜂都飞回家了，花园得救了！');if(!isT)setTimeout(function(){openReport(true);},1400);}
   }
 }
+function showKicked(reason){
+  var end=reason==='end';
+  try{Music.stop();TTS.cancel();}catch(e){}
+  playing=false;room=null;modalOpen=true;
+  if(!end){P.name='';save();}
+  $('kicked').innerHTML='<div class="kc" role="alertdialog" aria-live="assertive"><h2>'+(end?bi('The class has ended','课堂已结束'):bi('You were taken out of the room','你被请出了房间'))+'</h2><p>'+(end?bi('Your teacher ended this game session. Thank you for playing!','老师结束了这次游戏。谢谢你的参与！'):bi('Your teacher asked you to leave. Press the button and join again with your real name.','老师请你离开房间。请按按钮，用你的真实姓名重新加入。'))+'</p><button class="btn go" id="kreload">'+bi('Back to the start','回到开始页面')+'</button></div>';
+  $('kicked').hidden=false;
+  $('kreload').addEventListener('click',function(){location.reload();});
+}
 function lateNote(){
   var h='<div class="rep"><div class="mtag"><span>🐝 '+bi('Welcome, friend!','欢迎，朋友！')+'</span></div><h2>'+bi('Your class already sent the bees home! 🎉','你的班级已经把蜜蜂赶回家了！🎉')+'</h2><p>'+bi('You joined after the bees had gone. You can still read the flower clues and try the honey questions to practise. Ask your teacher for a New Round so you can play together again.','你是在蜜蜂回家之后才加入的。你仍然可以阅读花朵线索、练习蜂蜜问题。请老师开始“新一轮”，大家就能再一起玩。')+'</p><div class="mactions"><button class="btn go" data-a="again">'+bi('Back to the garden','回到花园')+'</button></div></div>';
   openModal(h);
@@ -1282,15 +1297,21 @@ async function connectRoom(){
       catch(e){r=null;roomName='';toast('Could not open team room “'+esc(code)+'”. You are playing on your own.','无法进入小组“'+esc(code)+'”，你现在是单人游戏。',5000);}
     }
     if(!r)return;
-    if(isT&&r.isAdmin===false){isT=false;act='w';$('b-class').hidden=true;$('mon').hidden=true;toast('Wrong teacher PIN. You joined as a pupil.','教师密码不对，你以学生身份加入。',7000);}
+    if(isT&&r.isAdmin===false){isT=false;act='w';$('b-class').hidden=true;$('mon').hidden=true;toast(r.wait?'Too many tries. Wait 15 seconds, then reload and try again. You joined as a pupil.':'Wrong teacher PIN. You joined as a pupil.',r.wait?'尝试次数太多。请等 15 秒后刷新再试。你现在以学生身份加入。':'教师密码不对，你以学生身份加入。',8000);}
     room=r;joinedAt=performance.now();
     try{room.on('round',function(m){var id=m&&m.data&&String(m.data.id||'');if(id&&/^[a-z0-9]{1,24}$/.test(id)&&id!==ROUND)newRound(id);});}catch(e){}
-    try{room.on('bank',function(m){var b=m&&m.data&&m.data.b;if(b&&!isT&&(+b.ver||0)!==APPLIED)applyBank(b);});}catch(e){}
+    try{room.on('bank',function(m){var b=m&&m.data&&m.data.b;if(b&&!(isT&&canBank)&&(+b.ver||0)!==APPLIED)applyBank(b);});}catch(e){}
     if(r.round&&/^[a-z0-9]{1,24}$/.test(String(r.round))&&String(r.round)!==ROUND)newRound(String(r.round));
     if(r.bank&&!isT)applyBank(r.bank);
+    try{room.on('kicked',function(m){showKicked(m&&m.data&&m.data.reason);});}catch(e){}
     if(isT){
       try{room.on('banksaved',function(m){var d=m&&m.data||{};QB.msg=d.store?(d.ok?'Saved online 已保存到网上':'Could not save online 无法保存到网上'):'';if(!$('qb').hidden)qbRender();if(d.store&&!d.ok)toast('Could not save your questions online. Check the Upstash settings.','无法把题目保存到网上。请检查 Upstash 设置。',6000);});}catch(e){}
-      if(r.bank&&adoptBank(r.bank)){}
+      if(window.__BZ_STANDALONE)canBank=!!r.isOwner;
+      if(!canBank){
+        if(r.bank)adoptBank(r.bank,true);
+        else if(BANK.ver){BANK={v:1,ver:0,edits:{},off:{},added:[]};saveBank();applyBank(BANK);}
+      }
+      else if(r.bank&&adoptBank(r.bank)){}
       else if(r.publishBank&&BANK.ver&&(!r.bank||(+r.bank.ver||0)<BANK.ver))publishBank();
     }
     try{room.onConnection(function(ok){connected=ok;updateHud();});}catch(e){}
@@ -1828,20 +1849,20 @@ function ago(ms){var m=Math.floor(ms/60000);return m<1?'under 1 min':m+' min';}
 function renderMon(){
   var box=$('mon');if(!isT||box.hidden)return;
   var now=Date.now(),list=[],tot=0,full=0;
-  for(var id in remotes){var r=remotes[id];if(r.t)continue;list.push(r);tot+=r.p;if(r.l>=22)full++;}
+  for(var id in remotes){var r=remotes[id];if(r.t)continue;r.id=id;list.push(r);tot+=r.p;if(r.l>=22)full++;}
   list.sort(function(a,b){return monSort==='help'?(a.prog||0)-(b.prog||0):b.p-a.p;});
   var h='<h3>📋 '+bi('Class monitor','班级监控')+(roomName?' · '+esc(roomName):'')+'</h3>';
   h+='<div class="bi">'+bi('Pupils: '+list.length+' · Average points: '+(list.length?Math.round(tot/list.length):0)+' · All 22 clues found: '+full,'学生：'+list.length+' · 平均分：'+(list.length?Math.round(tot/list.length):0)+' · 已找齐 22 个线索：'+full)+'</div>';
   h+='<div class="row"><b>'+bi('Goal per pupil','每人目标分')+'</b>';
   [40,80,120].forEach(function(g){h+='<button class="sm" data-m="goal" data-v="'+g+'" aria-pressed="'+(goalPer===g?'true':'false')+'">'+g+'</button>';});
-  h+='</div><div class="row"><button class="sm" data-m="newround">🔄 '+bi('New round','新一轮')+'</button><button class="sm" data-m="bank">📚 '+bi('Questions','题库')+'</button></div>'+(won?'<div class="bi">'+bi('🎉 The bees are home. Press New round so everyone can play again.','🎉 蜜蜂回家了。按“新一轮”，大家就能再玩一次。')+'</div>':'')+'<div class="row"><b>'+bi('Sort','排序')+'</b><button class="sm" data-m="sort" data-v="help" aria-pressed="'+(monSort==='help'?'true':'false')+'">'+bi('Needs help first','先看需要帮助的')+'</button><button class="sm" data-m="sort" data-v="pts" aria-pressed="'+(monSort==='pts'?'true':'false')+'">'+bi('Most points','分数最高')+'</button></div>';
+  h+='</div><div class="row"><button class="sm" data-m="newround">🔄 '+bi('New round','新一轮')+'</button><button class="sm" data-m="bank">📚 '+bi('Questions','题库')+'</button><button class="sm" data-m="endclass">🚪 '+bi('End class','结束课堂')+'</button></div>'+(won?'<div class="bi">'+bi('🎉 The bees are home. Press New round so everyone can play again.','🎉 蜜蜂回家了。按“新一轮”，大家就能再玩一次。')+'</div>':'')+'<div class="row"><b>'+bi('Sort','排序')+'</b><button class="sm" data-m="sort" data-v="help" aria-pressed="'+(monSort==='help'?'true':'false')+'">'+bi('Needs help first','先看需要帮助的')+'</button><button class="sm" data-m="sort" data-v="pts" aria-pressed="'+(monSort==='pts'?'true':'false')+'">'+bi('Most points','分数最高')+'</button></div>';
   h+='<div class="row">';PRESETS.forEach(function(x,i){h+='<button class="sm" data-m="say" data-v="'+i+'">📢 '+esc(x[0].split(' ').slice(0,3).join(' '))+'…</button>';});h+='</div>';
   h+='<div class="row"><input id="mon-say" maxlength="120" placeholder="Message to everyone 给大家的话" aria-label="Message to everyone"><button class="sm" data-m="send">📢 '+bi('Send','发送')+'</button></div>';
   h+='<ul>';
   var AC={w:'walking 走动',r:'reading a clue 读线索',q:'on a question 答题',t:'teacher'};
   list.slice(0,60).forEach(function(r){
     var stall=now-(r.prog||now),away=now-(r.chg||now)>60000,warn=stall>180000||away;
-    h+='<li class="'+(warn?'warn':'')+'"><span>'+CH[r.c].e+'</span><b>'+esc(r.n)+'</b><span>⭐'+r.p+' 🌼'+r.l+' 🍯'+r.s+'</span><small>'+(away?'⏸ away ':'')+esc(AC[r.a]||'')+' · '+(stall>180000?'⚠ no progress for '+ago(stall):'progress ok 正常')+'</small></li>';
+    h+='<li class="'+(warn?'warn':'')+'"><span>'+CH[r.c].e+'</span><b>'+esc(r.n)+'<button class="sm kick" data-m="kick" data-v="'+esc(r.id)+'" aria-label="Remove '+esc(r.n)+' from the room">✖ Remove</button></b><span>⭐'+r.p+' 🌼'+r.l+' 🍯'+r.s+'</span><small>'+(away?'⏸ away ':'')+esc(AC[r.a]||'')+' · '+(stall>180000?'⚠ no progress for '+ago(stall):'progress ok 正常')+'</small></li>';
   });
   if(!list.length)h+='<li><span>👀</span><b>'+bi('No pupils yet. Ask them to type the class code.','还没有学生。请他们输入班级代码。')+'</b></li>';
   h+='</ul>';
@@ -1854,6 +1875,17 @@ $('mon').addEventListener('click',function(e){
   else if(a==='goal'){goalPer=+v;sendGoal();updateHud();renderMon();toast('Goal set to '+v+' points per pupil.','目标已设为每人 '+v+' 分。',2000);}
   else if(a==='newround'){startNewRound();}
   else if(a==='bank'){qbOpen();}
+  else if(a==='kick'){
+    var kr=remotes[v];if(!kr)return;
+    if(!(room&&room.kick)){toast('Removing pupils works in the class version of the game.','移除学生的功能只在班级版游戏中可用。',4000);return;}
+    if(!confirm('Remove '+kr.n+' from the room? They can join again.\n要让 '+kr.n+' 离开房间吗？他们可以重新加入。'))return;
+    room.kick(v);toast('Removed '+kr.n+'.','已移除 '+kr.n+'。',2500);
+  }
+  else if(a==='endclass'){
+    if(!(room&&room.kickAll)){toast('Ending the class works in the class version of the game.','结束课堂的功能只在班级版游戏中可用。',4000);return;}
+    if(!confirm('End the class? Every pupil will be taken out of this room.\n要结束课堂吗？所有学生都会离开这个房间。'))return;
+    room.kickAll();toast('Class ended. All pupils were removed.','课堂已结束，所有学生都已离开。',3500);
+  }
   else if(a==='say'){sendSay(PRESETS[+v][0]);}
   else if(a==='send'){var i=$('mon-say');if(i.value.trim()){sendSay(i.value.trim());i.value='';}}
 });
@@ -1871,7 +1903,7 @@ var BASEQ=JSON.parse(JSON.stringify(PQ));
 var TAGS_OK=['cap','stop','comma','apos'];
 var TAGN={cap:'Capitals 大写',stop:'Full stops/marks 句末标点',comma:'Commas 逗号',apos:'Apostrophes 撇号'};
 var TYPEN={pick:'Choose the sentence 选句子',word:'Fill the gap 填空',mark:'Choose the mark 选标点',tap:'Tap the words 点词'};
-var BANK={v:1,ver:0,edits:{},off:{},added:[]},APPLIED=0,PUBAT=0;
+var BANK={v:1,ver:0,edits:{},off:{},added:[]},APPLIED=0,PUBAT=0,canBank=!window.__BZ_STANDALONE;
 function s1(v,n){return String(v==null?'':v).replace(/[\u0000-\u001f]/g,' ').slice(0,n);}
 function bx(o,n){
   if(!o||typeof o!=='object')return null;
@@ -1947,8 +1979,8 @@ function applyBank(b){
   });
   STONES.forEach(function(s){if(s.q===-1&&s.cool===0)s.q=nextQ();});
 }
-function adoptBank(b){
-  if(!b||typeof b!=='object'||(+b.ver||0)<=(BANK.ver||0))return false;
+function adoptBank(b,force){
+  if(!b||typeof b!=='object'||(!force&&(+b.ver||0)<=(BANK.ver||0)))return false;
   var nb={v:1,ver:+b.ver||0,edits:(b.edits&&typeof b.edits==='object')?b.edits:{},off:(b.off&&typeof b.off==='object')?b.off:{},added:Array.isArray(b.added)?b.added.slice(0,80):[]};
   if(bankList(nb).length<12)return false;
   BANK=nb;saveBank();applyBank(BANK);
@@ -2004,14 +2036,16 @@ function qbRender(){
   rows.forEach(function(r){if(!BANK.off[r.id])active++;});
   var h='<div class="qbc">';
   h+='<div class="qh"><h2>📚 '+bi('Question bank','题库')+'</h2><button class="sm" data-b="close">✖ '+bi('Close','关闭')+'</button></div>';
-  h+='<p class="small bi">'+bi('Check every question and its correct answer (✓). Edit, hide, or add your own. Pupils get your changes when you are logged in as teacher in your class room. '+active+' active of '+rows.length+'.','在这里检查每道题和正确答案（✓），也可以修改、隐藏或增加自己的题目。你以老师身份进入班级时，学生会收到你的改动。目前使用中：'+active+' / '+rows.length+'。')+'</p>';
+  h+='<p class="small bi">'+(canBank?bi('Check every question and its correct answer (✓). Edit, hide, or add your own. Pupils get your changes when you are logged in as teacher in your class room. '+active+' active of '+rows.length+'.','在这里检查每道题和正确答案（✓），也可以修改、隐藏或增加自己的题目。你以老师身份进入班级时，学生会收到你的改动。目前使用中：'+active+' / '+rows.length+'。'):bi('View only. Every question and its correct answer (✓) is shown here. Only the admin can change the questions. '+active+' active of '+rows.length+'.','仅供查看。这里显示每道题和正确答案（✓）。只有管理员可以修改题目。目前使用中：'+active+' / '+rows.length+'。'))+'</p>';
   var pub=(room&&isT&&room.publishBank)?(room.store?'Connected. Your questions are saved online, so they work on any computer. 题目已保存到网上，在任何电脑上都能用。':'Connected, but online saving is not set up yet, so changes stay on this device. 已连接，但尚未设置网上保存。'):'Saved on this device. Start the game as teacher in your class to send changes to pupils and save them online. 已保存在这台设备上。请以老师身份进入班级，才能发送给学生并保存到网上。';
+  if(!canBank)pub='';
   h+='<p class="small" role="status">'+esc(pub)+(QB.msg?' · '+esc(QB.msg):'')+'</p>';
   if(QB.edit===null){
     h+='<div class="qtools"><span class="lab">Level 级别</span>';
     [['0','All'],['1','1 Easy'],['2','2 Medium'],['3','3 Hard']].forEach(function(f){h+='<button class="sm" data-b="filter" data-v="'+f[0]+'" aria-pressed="'+(QB.filter===f[0]?'true':'false')+'">'+f[1]+'</button>';});
     h+='<input id="qb-search" placeholder="Search 搜索" value="'+esc(QB.text)+'" aria-label="Search questions"></div>';
-    h+='<div class="qtools"><button class="sm" data-b="add">➕ Add question 增加题目</button><button class="sm" data-b="publish">📢 Send to class 发送给全班</button><button class="sm" data-b="export">⬇ Save file 保存文件</button><button class="sm" data-b="import">⬆ Load file 载入文件</button><button class="sm" data-b="print">🖨 Print / PDF 打印</button><button class="sm" data-b="resetall">↺ Original 恢复原题</button><input type="file" id="qb-file" accept=".json,application/json" hidden></div>';
+    if(canBank)h+='<div class="qtools"><button class="sm" data-b="add">➕ Add question 增加题目</button><button class="sm" data-b="publish">📢 Send to class 发送给全班</button><button class="sm" data-b="export">⬇ Save file 保存文件</button><button class="sm" data-b="import">⬆ Load file 载入文件</button><button class="sm" data-b="print">🖨 Print / PDF 打印</button><button class="sm" data-b="resetall">↺ Original 恢复原题</button><input type="file" id="qb-file" accept=".json,application/json" hidden></div>';
+    if(!canBank)h+='<div class="qtools"><button class="sm" data-b="print">🖨 Print / PDF 打印</button></div>';
     if(QB.adding){
       h+='<div class="qadd"><b>New question type 新题类型</b>';
       ['pick','word','mark','tap'].forEach(function(t){h+='<button class="sm" data-b="new" data-v="'+t+'">'+esc(TYPEN[t])+'</button>';});
@@ -2024,7 +2058,7 @@ function qbRender(){
       if(tx&&(('#'+r.id+' '+q.en+' '+q.zh+' '+q.full+' '+(q.opts?q.opts.map(function(o){return o.t;}).join(' '):'')).toLowerCase().indexOf(tx)<0))return;
       n++;
       var off=!!BANK.off[r.id],ed=!!(BANK.edits&&BANK.edits[r.id]);
-      h+='<article class="qr'+(off?' off':'')+'" data-id="'+r.id+'"><header><b>#'+r.id+'</b><span class="pill">L'+q.lvl+'</span><span class="pill">'+esc(TYPEN[q.type])+'</span>'+(off?'<span class="pill">Hidden 已隐藏</span>':'')+(ed?'<span class="pill">Edited 已修改</span>':'')+(!r.base?'<span class="pill">New 新题</span>':'')+'<span class="sp"></span><button class="sm" data-b="edit">✏ Edit</button><button class="sm" data-b="hide">'+(off?'👁 Show':'🙈 Hide')+'</button>'+(ed?'<button class="sm" data-b="revert">↺ Original</button>':'')+(!r.base?'<button class="sm" data-b="del">🗑 Delete</button>':'')+'</header>';
+      h+='<article class="qr'+(off?' off':'')+'" data-id="'+r.id+'"><header><b>#'+r.id+'</b><span class="pill">L'+q.lvl+'</span><span class="pill">'+esc(TYPEN[q.type])+'</span>'+(off?'<span class="pill">Hidden 已隐藏</span>':'')+(ed?'<span class="pill">Edited 已修改</span>':'')+(!r.base?'<span class="pill">New 新题</span>':'')+'<span class="sp"></span>'+(canBank?'<button class="sm" data-b="edit">✏ Edit</button><button class="sm" data-b="hide">'+(off?'👁 Show':'🙈 Hide')+'</button>'+(ed?'<button class="sm" data-b="revert">↺ Original</button>':'')+(!r.base?'<button class="sm" data-b="del">🗑 Delete</button>':''):'')+'</header>';
       h+='<div class="qp">'+esc(q.art)+' '+esc(q.en)+'<br><small>'+esc(q.zh)+'</small></div>'+qaHtml(q)+'</article>';
     });
     if(!n)h+='<p>No questions match. 没有符合的题目。</p>';
@@ -2152,6 +2186,8 @@ function qbSaveDraft(){
   commitBank();
 }
 function qbAction(b){
+  var a0=b.getAttribute('data-b');
+  if(!canBank&&a0!=='close'&&a0!=='filter'&&a0!=='print')return;
   var a=b.getAttribute('data-b'),v=b.getAttribute('data-v'),row=b.closest('[data-id]'),id=row?+row.getAttribute('data-id'):0;
   if(a==='close')qbClose();
   else if(a==='filter'){QB.filter=v;qbRender();}
@@ -2220,7 +2256,15 @@ $('qb').addEventListener('change',function(e){
   var r=qbField(t);
   if(r===true||t.getAttribute('data-f')==='words')qbRender();
 });
-$('qbopen').addEventListener('click',qbOpen);
+$('qbopen').addEventListener('click',function(){
+  if(!window.__BZ_STANDALONE){canBank=true;qbOpen();return;}
+  var pin=$('tpin')?String($('tpin').value||'').trim():'';
+  if(!pin){toast('Type your PIN first.','请先输入你的密码。',3500);if($('tpin'))$('tpin').focus();return;}
+  fetch('auth',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({pin:pin})}).then(function(r){return r.json();}).then(function(j){
+    if(!j||!j.teacher){toast(j&&j.wait?'Too many tries. Wait 15 seconds and try again.':'That PIN is not right.',j&&j.wait?'尝试次数太多。请等 15 秒再试。':'密码不正确。',4500);return;}
+    canBank=!!j.owner;qbOpen();
+  }).catch(function(){toast('Could not check the PIN. Is the game online?','无法检查密码。游戏在线吗？',4000);});
+});
 
 /* ---------- toolbar and lobby ---------- */
 function setLang(l){
