@@ -1,0 +1,1854 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<script src="shim.js"></script>
+<title>Buzz Off Garden</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@600;800&family=Nunito:wght@600;800&display=swap">
+<style>
+/* Layout: one full-screen garden canvas with a light HUD around it; lobby and lesson cards float above it.
+   Single bright daytime look by design, so every colour is set explicitly. */
+:root{
+  --grass:#8fd35a; --grass-d:#5aa63a; --honey:#ffc83d; --honey-d:#d99a00;
+  --ink:#23331c; --paper:#fffaf0; --sky:#d4f0ff; --berry:#e0526b;
+  --good:#12906f; --good-bg:#d9f5ea; --try:#b45309; --try-bg:#fff0cf; --line:#d9ccae;
+  --f-disp:'Baloo 2','Nunito','PingFang SC','Microsoft YaHei','Noto Sans SC',system-ui,sans-serif;
+  --f-body:'Nunito','PingFang SC','Microsoft YaHei','Noto Sans SC',system-ui,sans-serif;
+  color-scheme:light;
+}
+*{box-sizing:border-box}
+[hidden]{display:none!important}
+html,body{height:100%}
+body{margin:0;overflow:hidden;background:var(--grass);color:var(--ink);font-family:var(--f-body);font-weight:600;font-size:16px;line-height:1.4;-webkit-tap-highlight-color:transparent;touch-action:manipulation}
+button,input{font:inherit;color:inherit}
+button{cursor:pointer}
+:focus-visible{outline:3px solid #1d5fd6;outline-offset:2px}
+#app{position:fixed;inset:0}
+#cv,#fxc{position:absolute;inset:0;width:100%;height:100%;display:block}
+#cv{touch-action:none;cursor:pointer}
+#fxc{pointer-events:none;z-index:50}
+.zh{font-family:var(--f-body)}
+body[data-lang="en"] .zh{display:none!important}
+body[data-lang="zh"] .en{display:none!important}
+.bi .zh{display:block;font-weight:600;opacity:.92}
+.inl .zh{display:inline;margin-left:.4em}
+
+/* HUD */
+.hud{position:absolute;z-index:10;pointer-events:none}
+.hud>*{pointer-events:auto}
+#top{left:0;right:0;top:0;padding:max(8px,env(safe-area-inset-top,0px)) 12px 0;display:flex;flex-direction:column;gap:8px;align-items:stretch}
+.chip{background:var(--paper);border:3px solid var(--ink);border-radius:1.1rem;box-shadow:0 3px 0 var(--ink);padding:.3rem .8rem}
+#meter{display:grid;grid-template-columns:auto minmax(0,1fr) auto;gap:.2rem .8rem;align-items:center}
+#meter .bees{font-family:var(--f-disp);font-weight:800;font-size:1.25rem;line-height:1.1;white-space:nowrap}
+#meter .bar{height:1.1rem;border:3px solid var(--ink);border-radius:99px;background:#fff;overflow:hidden}
+#meter .bar i{display:block;height:100%;width:0;background:repeating-linear-gradient(135deg,var(--honey) 0 10px,#f6b300 10px 20px);transition:width .6s ease-out}
+#meter .pts{font-weight:800;white-space:nowrap;font-variant-numeric:tabular-nums}
+#row2{display:flex;gap:8px;align-items:flex-start;justify-content:space-between}
+#mini{width:132px;height:88px;border:3px solid var(--ink);border-radius:.8rem;background:#b8e48c;box-shadow:0 3px 0 var(--ink);display:block}
+#tools{display:flex;gap:6px;flex-wrap:wrap;justify-content:flex-end;max-width:calc(100% - 150px)}
+.tb{min-width:2.75rem;height:2.75rem;border:3px solid var(--ink);border-radius:.9rem;background:var(--paper);box-shadow:0 3px 0 var(--ink);font-size:1.25rem;line-height:1;padding:0 .5rem;display:inline-flex;align-items:center;justify-content:center;gap:.25rem}
+.tb[aria-pressed="false"]{background:#e9e2cf;opacity:.8}
+.tb small{font-family:var(--f-body);font-weight:800;font-size:.8rem}
+.tb:active,.btn:active{transform:translateY(2px);box-shadow:0 1px 0 var(--ink)}
+#roster{position:absolute;z-index:12;right:12px;top:calc(max(8px,env(safe-area-inset-top,0px)) + 112px);width:min(17rem,calc(100% - 24px));max-height:46vh;overflow:auto;padding:.6rem .8rem}
+#roster h3{margin:0 0 .3rem;font-family:var(--f-disp);font-size:1.05rem}
+#roster ul{list-style:none;margin:0;padding:0;display:grid;gap:.25rem}
+#roster li{display:grid;grid-template-columns:auto minmax(0,1fr) auto;gap:.5rem;align-items:center}
+#roster li b{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+#roster li.me{background:#fff3c4;border-radius:.6rem;padding-inline:.3rem}
+#bottom{left:0;right:0;bottom:0;padding:0 12px max(10px,env(safe-area-inset-bottom,0px));display:flex;flex-direction:column;align-items:center;gap:8px}
+#act{min-height:3.3rem;max-width:100%;padding:.4rem 1.3rem;border:3px solid var(--ink);border-radius:99px;background:var(--honey);box-shadow:0 4px 0 var(--ink);font-family:var(--f-disp);font-weight:800;font-size:1.15rem;line-height:1.1;text-align:center;animation:pulse 1.2s ease-in-out infinite}
+#act .zh{display:block;font-size:.85em;font-weight:600}
+@keyframes pulse{50%{transform:scale(1.05)}}
+#emotes{display:flex;gap:6px}
+#emotes .tb{font-size:1.4rem}
+#hint{background:var(--paper);border:3px solid var(--ink);border-radius:1rem;padding:.3rem .9rem;text-align:center;max-width:min(30rem,100%);font-size:.95rem}
+
+/* toast */
+#toast{position:absolute;z-index:40;left:50%;top:calc(max(8px,env(safe-area-inset-top,0px)) + 112px);transform:translateX(-50%);max-width:min(26rem,calc(100% - 32px));padding:.5rem 1rem;border:3px solid var(--ink);border-radius:1rem;background:var(--paper);box-shadow:0 4px 0 var(--ink);text-align:center;opacity:0;pointer-events:none;transition:opacity .25s}
+#toast.on{opacity:1}
+
+/* buttons */
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:.5rem;min-height:3rem;padding:.35rem 1.2rem;border:3px solid var(--ink);border-radius:99px;background:var(--paper);box-shadow:0 4px 0 var(--ink);font-family:var(--f-disp);font-weight:800;font-size:1.1rem;line-height:1.1;text-align:center}
+.btn.go{background:var(--honey)}
+.btn.good{background:var(--good);color:#fff}
+.btn[disabled]{opacity:.45;box-shadow:none;cursor:default}
+
+/* lobby */
+#lobby{position:absolute;inset:0;z-index:30;overflow:auto;background:linear-gradient(var(--sky) 0 38%,var(--grass) 38%);padding:max(16px,env(safe-area-inset-top,0px)) 16px max(24px,env(safe-area-inset-bottom,0px));display:flex;align-items:flex-start;justify-content:center}
+#lobby .panel{width:min(38rem,100%);margin-block:auto;background:var(--paper);border:4px solid var(--ink);border-radius:1.6rem;box-shadow:0 8px 0 var(--ink);padding:clamp(1rem,3.5vw,1.8rem);display:grid;gap:1rem}
+#lobby h1{margin:0;font-family:var(--f-disp);font-weight:800;font-size:clamp(2rem,8vw,3.2rem);line-height:1;text-wrap:balance}
+#lobby h1 span{display:inline-block;transform:rotate(-4deg);color:#b87500}
+.story{margin:0}
+.lab{font-weight:800;font-size:.9rem;letter-spacing:.04em;text-transform:uppercase;margin-bottom:.35rem;display:block}
+.chars{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:.5rem}
+.chars button{aspect-ratio:1;border:3px solid var(--ink);border-radius:1rem;background:#fff;font-size:2.2rem;line-height:1;display:flex;align-items:center;justify-content:center}
+.chars button[aria-checked="true"]{background:var(--honey);box-shadow:0 4px 0 var(--ink);transform:translateY(-3px)}
+.fields{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:.8rem}
+.fields input{width:100%;min-height:3rem;border:3px solid var(--ink);border-radius:.9rem;padding:.3rem .8rem;background:#fff}
+.seg{display:flex;border:3px solid var(--ink);border-radius:99px;overflow:hidden;background:#fff}
+.seg button{flex:1;min-height:2.6rem;border:0;background:transparent;font-weight:800}
+.seg button[aria-checked="true"]{background:var(--ink);color:#fff}
+.small{font-size:.9rem;margin:0;opacity:.85}
+#lobby .row{display:flex;gap:.8rem;align-items:center;justify-content:space-between;flex-wrap:wrap}
+#lobby #go{width:100%;min-height:3.6rem;font-size:1.4rem}
+
+/* modal */
+.modal{position:absolute;inset:0;z-index:35;background:rgba(35,51,28,.55);display:flex;align-items:center;justify-content:center;padding:max(12px,env(safe-area-inset-top,0px)) 12px max(12px,env(safe-area-inset-bottom,0px))}
+.mcard{position:relative;width:min(40rem,100%);max-height:100%;overflow:auto;background:var(--paper);border:4px solid var(--ink);border-radius:1.5rem;box-shadow:0 8px 0 var(--ink);padding:clamp(1rem,3vw,1.6rem);display:grid;gap:.9rem}
+.mclose{position:absolute;right:.6rem;top:.6rem;width:2.6rem;height:2.6rem;border:3px solid var(--ink);border-radius:50%;background:#fff;font-weight:800}
+.mtag{font-weight:800;font-size:.9rem;letter-spacing:.04em;text-transform:uppercase;padding-right:3rem;display:flex;gap:.5rem;flex-wrap:wrap;align-items:center}
+.pill{display:inline-flex;align-items:center;gap:.3rem;border-radius:99px;padding:.05rem .7rem;border:2px solid var(--ink);background:#fff;text-transform:none;letter-spacing:0}
+.q-art{font-size:2.4rem;line-height:1}
+.qtext{font-family:var(--f-disp);font-weight:800;font-size:clamp(1.15rem,3.6vw,1.5rem);line-height:1.2}
+.sentbig{font-family:var(--f-disp);font-weight:800;font-size:clamp(1.5rem,6vw,2.4rem);line-height:1.5;background:#fff;border:3px solid var(--ink);border-radius:1rem;padding:.7rem .9rem;overflow-wrap:anywhere}
+.sentbig .w{display:inline-block;margin-right:.3em}
+.fx{border-radius:.14em;padding-inline:.04em;color:var(--rc);background:var(--rb)}
+.fx.pop{animation:pop .5s ease-out}
+@keyframes pop{0%{transform:scale(.4)}60%{transform:scale(1.35)}100%{transform:scale(1)}}
+.r-cap{--rc:#1d5fd6;--rb:#dbe7ff}.r-low{--rc:#6a35c9;--rb:#ece3ff}.r-stop{--rc:#c2410c;--rb:#ffe2cf}.r-comma{--rc:#0b7a5a;--rb:#d3f4e5}.r-apos{--rc:#a3154f;--rb:#fddbe8}
+.rule{display:inline-flex;align-items:center;gap:.4rem;font-weight:800;color:var(--rc);background:var(--rb);border-radius:99px;padding:.1rem .8rem}
+.rule b{font-family:var(--f-disp);font-size:1.3rem;line-height:1}
+.stepbox{background:#fff;border:3px dashed var(--line);border-radius:1rem;padding:.7rem .9rem;display:grid;gap:.4rem;font-size:1.05rem}
+.pill .zh,.mtag .zh,.btn .zh,.rule .zh{display:inline;margin-left:.35em}
+#mon{position:absolute;z-index:12;left:12px;top:calc(max(8px,env(safe-area-inset-top,0px)) + 112px);width:min(26rem,calc(100% - 24px));max-height:calc(100% - 270px);overflow:auto;padding:.7rem .9rem;display:grid;gap:.6rem}
+#mon h3{margin:0;font-family:var(--f-disp);font-size:1.1rem}
+#mon .row{display:flex;gap:.4rem;flex-wrap:wrap;align-items:center}
+#mon button.sm{min-height:2.2rem;padding:.1rem .7rem;border:2px solid var(--ink);border-radius:99px;background:#fff;font-weight:800;font-size:.85rem}
+#mon button.sm[aria-pressed="true"]{background:var(--ink);color:#fff}
+#mon input{flex:1;min-width:8rem;min-height:2.4rem;border:2px solid var(--ink);border-radius:.7rem;padding:.1rem .6rem}
+#mon ul{list-style:none;margin:0;padding:0;display:grid;gap:.3rem}
+#mon li{display:grid;grid-template-columns:auto minmax(0,1fr) auto;gap:.1rem .5rem;align-items:center;padding:.2rem .4rem;border-radius:.6rem;background:#fff}
+#mon li.warn{background:var(--try-bg)}
+#mon li small{grid-column:2/-1;font-weight:600;opacity:.85}
+#mon li b{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.teach{display:flex;gap:.6rem;align-items:center;font-weight:800;padding:.4rem .6rem;border:3px dashed var(--ink);border-radius:1rem;background:#e8f0ff}
+.teach input{width:1.4rem;height:1.4rem}
+.stepbox .tip{background:#fff3c4;border-radius:.7rem;padding:.4rem .7rem}
+.mactions{display:flex;gap:.6rem;flex-wrap:wrap;justify-content:flex-end}
+.opts{display:grid;gap:.6rem}
+.opt{display:grid;grid-template-columns:auto minmax(0,1fr);gap:.7rem;align-items:center;text-align:left;min-height:3.4rem;padding:.4rem .8rem;border:3px solid var(--ink);border-radius:1rem;background:#fff;box-shadow:0 3px 0 var(--ink);font-size:1.1rem}
+.opt .ltr{width:2rem;height:2rem;border-radius:50%;background:var(--ink);color:#fff;display:flex;align-items:center;justify-content:center;font-family:var(--f-disp);font-weight:800}
+.opt .zh{font-size:.85em}
+.opt[disabled]{opacity:.5;box-shadow:none;background:#f1ead6}
+.opt.right{background:var(--good-bg);border-color:var(--good)}
+.opts.marks{grid-template-columns:repeat(3,minmax(0,1fr))}
+.opts.marks .opt{grid-template-columns:minmax(0,1fr);justify-items:center;text-align:center}
+.opts.marks .big{font-family:var(--f-disp);font-weight:800;font-size:2.2rem;line-height:1}
+.gap{display:inline-block;min-width:3rem;border-bottom:4px solid var(--ink);margin-inline:.2em;text-align:center;color:var(--good)}
+.tapw{display:flex;flex-wrap:wrap;gap:.5rem}
+.tapw button{min-height:3rem;padding:.2rem .8rem;border:3px solid var(--ink);border-radius:.9rem;background:#fff;box-shadow:0 3px 0 var(--ink);font-family:var(--f-disp);font-weight:800;font-size:1.3rem}
+.tapw button[aria-pressed="true"]{background:#dbe7ff;border-color:#1d5fd6;color:#1d5fd6}
+.tapw button.ok{background:var(--good-bg);border-color:var(--good);color:var(--good)}
+.tapw button.show{background:#ece3ff;border-color:#6a35c9;color:#6a35c9}
+.fb{display:grid;grid-template-columns:auto minmax(0,1fr);gap:.8rem;align-items:start;border:3px solid var(--ink);border-radius:1rem;padding:.7rem .9rem}
+.fb .face{font-size:2.4rem;line-height:1}
+.fb.right{background:var(--good-bg);border-color:var(--good)}
+.fb.wrong{background:var(--try-bg);border-color:#d99a00}
+.fb.reveal{background:#ece3ff;border-color:#6a35c9}
+.fb h4{margin:0;font-family:var(--f-disp);font-size:1.25rem}
+.fb p{margin:.2rem 0 0}
+.stars{display:flex;gap:.2rem;font-size:1.6rem}
+.rep h2{margin:0;font-family:var(--f-disp);font-size:clamp(1.7rem,6vw,2.4rem);line-height:1.1}
+.rep .big{font-family:var(--f-disp);font-weight:800;font-size:3rem;line-height:1}
+.kpis{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:.6rem}
+.kpis div{background:#fff;border:3px solid var(--ink);border-radius:1rem;padding:.4rem .6rem;text-align:center}
+.kpis b{display:block;font-family:var(--f-disp);font-size:1.7rem;line-height:1.1}
+.sk{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:.2rem .8rem;align-items:center}
+.sk .b2{grid-column:1/-1;height:.8rem;background:#e9e2cf;border-radius:99px;overflow:hidden}
+.sk .b2 i{display:block;height:100%;background:var(--good)}
+.sk.low .b2 i{background:#d99a00}
+.team{list-style:none;margin:0;padding:0;display:grid;gap:.3rem}
+.team li{display:grid;grid-template-columns:auto minmax(0,1fr) auto;gap:.6rem;align-items:center}
+.team li b{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+@media (max-width:560px){
+  #mini{width:104px;height:70px}
+  #tools{max-width:calc(100% - 120px)}
+  .tb{min-width:2.5rem;height:2.5rem;font-size:1.1rem}
+  .fields{grid-template-columns:minmax(0,1fr)}
+  .opts.marks .big{font-size:1.8rem}
+  .kpis b{font-size:1.4rem}
+  #meter{grid-template-columns:auto minmax(0,1fr)}
+  #meter .pts{grid-column:1/-1}
+}
+@media (prefers-reduced-motion:reduce){#act{animation:none}.fx.pop{animation:none}}
+</style>
+
+<div id="app">
+  <canvas id="cv" aria-label="Garden. Tap or click to walk. Arrow keys or W A S D also work." role="img"></canvas>
+  <canvas id="fxc" aria-hidden="true"></canvas>
+
+  <div id="top" class="hud" hidden>
+    <div id="meter" class="chip" aria-live="polite">
+      <div class="bees" id="beetxt"></div>
+      <div class="bar"><i id="beebar"></i></div>
+      <div class="pts" id="ptstxt"></div>
+    </div>
+    <div id="row2">
+      <canvas id="mini" width="264" height="176" aria-label="Garden map"></canvas>
+      <div id="tools">
+        <button class="tb" id="b-class" hidden aria-label="Class monitor" title="Class monitor">📋</button>
+        <button class="tb" id="b-friends" aria-pressed="false" aria-label="Friends in the garden" title="Friends">👥<small id="peercount">1</small></button>
+        <button class="tb" id="b-voice" aria-pressed="true" aria-label="Read aloud on or off" title="Read aloud">🔊</button>
+        <button class="tb" id="b-music" aria-pressed="true" aria-label="Music on or off" title="Music">🎵</button>
+        <button class="tb" id="b-lang" aria-label="Change language" title="Language"><small id="langtxt">EN+中</small></button>
+        <button class="tb" id="b-report" aria-label="My detective report" title="My report">🏆</button>
+      </div>
+    </div>
+  </div>
+  <div id="roster" class="chip" hidden></div>
+  <div id="mon" class="chip" hidden></div>
+  <div id="toast" role="status"></div>
+  <div id="bottom" class="hud" hidden>
+    <div id="hint" class="bi" hidden></div>
+    <button id="act" hidden></button>
+    <div id="emotes" role="group" aria-label="Say hello to friends">
+      <button class="tb" data-emo="👋" aria-label="Wave">👋</button>
+      <button class="tb" data-emo="👏" aria-label="Clap">👏</button>
+      <button class="tb" data-emo="⭐" aria-label="Star">⭐</button>
+      <button class="tb" data-emo="💪" aria-label="Well done">💪</button>
+      <button class="tb" data-emo="😀" aria-label="Smile">😀</button>
+    </div>
+  </div>
+
+  <div id="modal" class="modal" hidden><div class="mcard" role="dialog" aria-modal="true"><button class="mclose" data-a="close" aria-label="Back to the garden">✕</button><div id="mbody" class="bi"></div></div></div>
+
+  <div id="lobby">
+    <div class="panel bi">
+      <h1><span>Buzz</span> Off Garden</h1>
+      <p class="story"><span class="en">The bees are buzzing because the garden signs are all mixed up. Find the flowers, fix the sentences and answer the questions. Every point sends the bees home.</span><span class="zh">花园里的牌子都写错了，蜜蜂很生气。找到小花，改正句子，回答问题。每得一分，蜜蜂就离开一点。</span></p>
+      <div>
+        <span class="lab" id="chlab"><span class="en">Choose your character</span><span class="zh inl">选择你的角色</span></span>
+        <div class="chars" id="chars" role="radiogroup" aria-labelledby="chlab"></div>
+      </div>
+      <div class="fields">
+        <label><span class="lab"><span class="en">Nickname</span><span class="zh inl">昵称</span></span><input id="nick" maxlength="14" autocomplete="off" placeholder="e.g. Happy Fox"></label>
+        <label><span class="lab"><span class="en">Class code</span><span class="zh inl">班级代码</span></span><input id="code" maxlength="12" autocomplete="off" autocapitalize="none" autocorrect="off" spellcheck="false" inputmode="text" placeholder="e.g. 3sun"></label>
+      </div>
+      <label id="teachrow" class="teach" hidden><input type="checkbox" id="isteacher"> <span class="en">I am the teacher</span><span class="zh inl">我是老师</span><input id="tpin" type="password" autocomplete="off" maxlength="40" placeholder="Teacher PIN 教师密码" style="width:11rem;height:auto;padding:.3rem .5rem;border:2px solid var(--ink);border-radius:.6rem;font:inherit"></label>
+      <p class="small" id="codehelp"><span class="en">Class code: small letters and numbers only, no spaces, like 3sun. Everyone in your class types the same code. Leave it empty to play on your own.</span><span class="zh">班级代码只能用小写字母和数字，不要空格，例如 3sun。同一个班的同学要输入相同的代码。留空就是自己玩。</span></p>
+      <div>
+        <span class="lab"><span class="en">Language</span><span class="zh inl">语言</span></span>
+        <div class="seg" id="lobbylang" role="radiogroup" aria-label="Language">
+          <button role="radio" data-l="both" aria-checked="true">English + 中文</button>
+          <button role="radio" data-l="en" aria-checked="false">English</button>
+          <button role="radio" data-l="zh" aria-checked="false">中文</button>
+        </div>
+      </div>
+      <button class="btn go" id="go"><span class="en">Enter the garden</span><span class="zh inl">进入花园</span></button>
+    </div>
+  </div>
+</div>
+
+<script>
+(function(){
+'use strict';
+/*DATA-START*/
+var RULE={
+  cap:{cls:'cap',sym:'A',en:'Capital letter',zh:'大写字母'},
+  low:{cls:'low',sym:'a',en:'Small letter',zh:'小写字母'},
+  stop:{cls:'stop',sym:'.',en:'Full stop',zh:'句号'},
+  q:{cls:'stop',sym:'?',en:'Question mark',zh:'问号'},
+  ex:{cls:'stop',sym:'!',en:'Exclamation mark',zh:'感叹号'},
+  comma:{cls:'comma',sym:',',en:'Comma',zh:'逗号'},
+  apos:{cls:'apos',sym:'’',en:'Apostrophe',zh:'撇号'}
+};
+var S=function(r,en,zh){return {r:r,en:en,zh:zh};};
+var CAPQ=S('cap','A question starts with a capital letter too.','问句的第一个词也要大写。');
+var FIRST=S('cap','The first word of a sentence needs a capital letter.','句子的第一个词要大写。');
+var TELL=S('stop','This sentence tells us something, so it ends with a full stop.','这是陈述句，所以句末用句号。');
+var ASK=S('q','This sentence asks something, so it ends with a question mark.','这是问句，所以句末用问号。');
+var ITEMS=[
+{t:'lisas|Lisas@1|Lisa’s@2 hat isnt|isn’t@3 here|here.@4',
+ s:[S('cap','A sentence starts with a capital letter. Lisa is a name, so it needs a capital L.','句子以大写字母开头。Lisa 是人名，所以 L 要大写。'),
+    S('apos','The hat belongs to Lisa, so add an apostrophe and s: Lisa’s.','帽子是 Lisa 的，所以加上撇号和 s：Lisa’s。'),
+    S('apos','isn’t is short for is not. The apostrophe takes the place of the missing o.','isn’t 是 is not 的缩写，撇号代替了漏掉的字母 o。'),
+    TELL],
+ zh:'Lisa 的帽子不在这里。'},
+{t:'mary|Mary@1|Mary,@2 can you skip|skip?@3',
+ s:[S('cap','Mary is a name and the first word, so it needs a capital M.','Mary 是人名，也是第一个词，所以 M 要大写。'),
+    S('comma','We are speaking to Mary, so put a comma after her name.','我们在对 Mary 说话，所以名字后面要加逗号。'),
+    ASK],
+ tip:{en:'can has no capital letter because it is in the middle of the sentence.',zh:'can 在句子中间，所以不需要大写。'},
+ zh:'Mary，你会跳绳吗？'},
+{t:'the|The@1 Ladybirds|ladybirds@2 can Crawl|crawl@2 and fly|fly.@3',
+ s:[FIRST,
+    S('low','ladybirds and crawl are not names, so they stay small in the middle of a sentence.','ladybirds 和 crawl 不是名字，在句子中间要用小写。'),
+    TELL],
+ zh:'瓢虫会爬，也会飞。'},
+{t:'can|Can@1 you stand on one leg|leg?@2',
+ s:[CAPQ,ASK],
+ zh:'你能单脚站立吗？'},
+{t:'the|The@1 belt is made of leather|leather.@2',
+ s:[FIRST,TELL],
+ zh:'这条腰带是皮革做的。'},
+{t:'i|I@1 am wearing a skirt|skirt,@2 socks and shoes|shoes.@3',
+ s:[S('cap','The word I is always a capital letter, wherever it is in a sentence.','单词 I（我）无论在句子的什么位置，都要大写。'),
+    S('comma','In a list, put commas between the items and join the last two with and. There is no comma before and.','列举事物时，用逗号隔开，最后两项用 and 连接。and 前面不加逗号。'),
+    TELL],
+ tip:{en:'In Chinese we write a list with 、 but in English we use a comma.',zh:'中文列举用顿号（、），英文用逗号（,）。'},
+ zh:'我穿着裙子、袜子和鞋子。'},
+{t:'oh|Oh@1 no|no!@2 my|My@3 hat is not here|here.@4',
+ s:[S('cap','Oh is the first word, so it needs a capital letter.','Oh 是第一个词，所以要大写。'),
+    S('ex','Oh no shows worry or surprise, so we add an exclamation mark.','Oh no 表示着急或惊讶，所以加感叹号。'),
+    S('cap','After an exclamation mark a new sentence begins, so My needs a capital M.','感叹号后面是新的句子，所以 My 要大写。'),
+    TELL],
+ zh:'哎呀！我的帽子不在这里。'},
+{t:'what|What@1 are you wearing|wearing?@2',
+ s:[CAPQ,ASK],
+ zh:'你穿着什么？'},
+{t:'lets|Lets@1|Let’s@2 paint a picture|picture.@3',
+ s:[S('cap','Let’s is the first word, so it starts with a capital letter.','Let’s 是第一个词，所以要大写。'),
+    S('apos','Let’s is short for let us. The apostrophe takes the place of the missing u.','Let’s 是 let us 的缩写，撇号代替了漏掉的字母 u。'),
+    TELL],
+ tip:{en:'Feeling excited? You can end with an exclamation mark instead.',zh:'如果很兴奋，句末也可以用感叹号。'},
+ zh:'我们来画一幅画吧。'},
+{t:'mark|Mark@1 and ben|Ben@1 play football on sundays|Sundays@2|Sundays.@3',
+ s:[S('cap','Mark and Ben are names of people, so they need capital letters.','Mark 和 Ben 是人名，所以要大写。'),
+    S('cap','Days of the week always start with a capital letter: Sundays.','星期的名称总是以大写字母开头：Sundays（每个星期天）。'),
+    TELL],
+ zh:'Mark 和 Ben 每个星期天都踢足球。'},
+{t:'its|Its@1|It’s@2 hers|hers.@3',
+ s:[S('cap','A sentence starts with a capital letter.','句子以大写字母开头。'),
+    S('apos','It’s is short for it is. The apostrophe takes the place of the missing i.','It’s 是 it is 的缩写，撇号代替了漏掉的字母 i。'),
+    TELL],
+ tip:{en:'hers means it belongs to her. It never needs an apostrophe, just like his, ours and theirs.',zh:'hers 表示“她的”，不需要撇号。his、ours、theirs 也一样。'},
+ zh:'这是她的。'},
+{t:'this|This@1 is daisy|Daisy@2 the duck|duck@3|duck.@4',
+ s:[S('cap','This is the first word, so it needs a capital T.','This 是第一个词，所以 T 要大写。'),
+    S('cap','Daisy is the duck’s name, so it needs a capital D.','Daisy 是鸭子的名字，所以 D 要大写。'),
+    S('low','duck is a kind of animal, not a name, so it stays small.','duck 只是动物的种类，不是名字，所以用小写。'),
+    TELL],
+ zh:'这是鸭子 Daisy。'},
+{t:'greg|Greg@1|Greg,@2 anna|Anna@1 and emma|Emma@1 are in the tunnel|tunnel.@3',
+ s:[S('cap','Greg, Anna and Emma are all names, so each one has a capital letter.','Greg、Anna 和 Emma 都是名字，所以都要大写。'),
+    S('comma','Names in a list are separated by commas and the last two are joined by and. One comma is enough here.','名字列表用逗号隔开，最后两个用 and 连接，所以这里只需要一个逗号。'),
+    TELL],
+ zh:'Greg、Anna 和 Emma 在隧道里。'},
+{t:'when|When@1 is his birthday|birthday?@2',
+ s:[CAPQ,ASK],
+ zh:'他的生日是什么时候？'},
+{t:'its|Its@1|It’s@2 a quarter past twelve|twelve.@3',
+ s:[S('cap','A sentence starts with a capital letter.','句子以大写字母开头。'),
+    S('apos','It’s is short for it is. The apostrophe takes the place of the missing i.','It’s 是 it is 的缩写，撇号代替了漏掉的字母 i。'),
+    TELL],
+ tip:{en:'A quarter past twelve means 12:15.',zh:'a quarter past twelve 是十二点一刻，也就是 12:15。'},
+ zh:'现在是十二点一刻。'},
+{t:'on|On@1 sunday|Sunday@2 morning|morning,@3 we were at the zoo|zoo.@4',
+ s:[S('cap','On is the first word, so it needs a capital O.','On 是第一个词，所以 O 要大写。'),
+    S('cap','Sunday is a day of the week, so it needs a capital S.','Sunday 是星期几，所以 S 要大写。'),
+    S('comma','A comma comes after an opening phrase like On Sunday morning. It shows where to pause before the main part of the sentence.','像 On Sunday morning 这样的开头短语后面要加逗号，表示在句子主要部分之前停顿。'),
+    TELL],
+ tip:{en:'Read it aloud. Your voice pauses after morning. That pause is where the comma goes.',zh:'大声读一读。读到 morning 后面会停顿一下，逗号就加在这里。'},
+ zh:'星期天早上，我们在动物园。'},
+{t:'crepes|Crepes@1 come from france|France@2|France.@3',
+ s:[S('cap','Crepes is the first word, so it needs a capital C.','Crepes 是第一个词，所以 C 要大写。'),
+    S('cap','France is the name of a country. Names of countries always have a capital letter.','France 是国家的名字，国家名一定要大写。'),
+    TELL],
+ tip:{en:'Crêpes are thin French pancakes.',zh:'Crêpes 是法式薄煎饼，也叫可丽饼。'},
+ zh:'可丽饼来自法国。'},
+{t:'anna|Anna@1 didnt|didn’t@2 swim or sail|sail.@3',
+ s:[S('cap','Anna is a name and the first word, so it needs a capital A.','Anna 是人名，也是第一个词，所以 A 要大写。'),
+    S('apos','didn’t is short for did not. The apostrophe takes the place of the missing o.','didn’t 是 did not 的缩写，撇号代替了漏掉的字母 o。'),
+    TELL],
+ zh:'Anna 没有游泳，也没有划船。'},
+{t:'mr|Mr@1 lee|Lee@1 has got ten ducks|ducks,@2 two sheep and five cows|cows.@3',
+ s:[S('cap','Mr is a title and Lee is a name. Both need a capital letter.','称呼 Mr 和名字 Lee 都要大写。'),
+    S('comma','Commas separate the things in a list: ten ducks, two sheep and five cows.','逗号隔开列举的事物：ten ducks, two sheep and five cows。'),
+    TELL],
+ tip:{en:'In UK English we write Mr with no full stop.',zh:'英式英语的 Mr 后面不加句号。'},
+ zh:'Lee 先生有十只鸭子、两只绵羊和五头奶牛。'},
+{t:'noodles|Noodles@1 come from china|China@2|China.@3',
+ s:[S('cap','Noodles is the first word, so it needs a capital N.','Noodles 是第一个词，所以 N 要大写。'),
+    S('cap','China is the name of a country, so it needs a capital C.','China 是国家的名字，所以 C 要大写。'),
+    TELL],
+ zh:'面条来自中国。'},
+{t:'my|My@1 favourite season is autumn|autumn@2|autumn.@3',
+ s:[S('cap','My is the first word, so it needs a capital M.','My 是第一个词，所以 M 要大写。'),
+    S('low','autumn is a season, not a name, so it stays small. Seasons do not need capital letters.','autumn 是季节，不是名字，所以用小写。季节不需要大写。'),
+    TELL],
+ zh:'我最喜欢的季节是秋天。'},
+{t:'there|There@1 are five sheep|sheep,@2 two horses and twenty chickens on the farm|farm.@3',
+ s:[S('cap','There is the first word, so it needs a capital T.','There 是第一个词，所以 T 要大写。'),
+    S('comma','Commas separate the animals in the list: five sheep, two horses and twenty chickens.','逗号隔开列举的动物：five sheep, two horses and twenty chickens。'),
+    TELL],
+ zh:'农场里有五只绵羊、两匹马和二十只鸡。'}
+];
+function parseWord(tok){
+  var parts=tok.split('|');
+  var versions=[{step:0,keep:false,chars:Array.from(parts[0]).map(function(c){return {c:c,t:0};})}];
+  parts.slice(1).forEach(function(p){
+    var at=p.lastIndexOf('@');
+    var text=p.slice(0,at), step=+p.slice(at+1);
+    var prev=versions[versions.length-1].chars;
+    var a=prev.map(function(x){return x.c;});
+    if(a.join('')===text){versions.push({step:step,keep:true,chars:prev});return;}
+    var b=Array.from(text), m=Math.min(a.length,b.length), pre=0, suf=0;
+    while(pre<m&&a[pre]===b[pre])pre++;
+    while(suf<m-pre&&a[a.length-1-suf]===b[b.length-1-suf])suf++;
+    var mid=b.slice(pre,b.length-suf).map(function(c){return {c:c,t:step};});
+    versions.push({step:step,keep:false,chars:prev.slice(0,pre).concat(mid,prev.slice(a.length-suf))});
+  });
+  return {versions:versions};
+}
+ITEMS.forEach(function(it){it.words=it.t.split(/\s+/).map(parseWord);it.n=it.s.length;});
+function wordsAt(item,cur){
+  return item.words.map(function(w){
+    var v=w.versions[0];
+    w.versions.forEach(function(x){if(x.step<=cur)v=x;});
+    return v.chars.map(function(c){return c.c;}).join('');
+  });
+}
+function textAt(item,cur){return wordsAt(item,cur).join(' ');}
+function fixedText(item){return textAt(item,item.n);}
+
+var X=function(en,zh){return {en:en,zh:zh};};
+var O=function(t,x){return {t:t,x:x||null};};
+var M=function(t,en,zh,x){return {t:t,n:X(en,zh),x:x||null};};
+var PQ=[
+   {id:1,lvl:1,tags:['cap'],type:'pick',art:'🐶',
+    en:'Which sentence is written correctly?',zh:'哪一个句子写得正确？',
+    opts:[O('my dog is brown.',X('This sentence starts with a small m. Every sentence needs a capital letter at the start.','这个句子以小写 m 开头。每个句子的开头都要大写。')),
+          O('My dog is brown.'),
+          O('My Dog is brown.',X('Dog is not a name here, so it stays small in the middle of a sentence.','这里的 dog 不是名字，在句子中间要用小写。'))],
+    ans:1,full:'My dog is brown.',
+    hint:X('Look at the first word. Then look at the words in the middle. Which letters should be capitals?','先看第一个词，再看句子中间的词。哪些字母需要大写？'),
+    why:X('A sentence begins with a capital letter. The word dog stays small because it is not a name.','句子以大写字母开头。dog 不是名字，所以用小写。')},
+   {id:2,lvl:1,tags:['stop'],type:'mark',art:'🎂',
+    en:'Which mark goes at the end of this sentence?',zh:'这个句子的末尾应该用哪个标点符号？',
+    pre:'How old are you',post:'',
+    opts:[M('.','full stop','句号',X('A full stop tells us something. This sentence asks something.','句号用于陈述。这个句子是在提问。')),
+          M('?','question mark','问号'),
+          M('!','exclamation mark','感叹号',X('An exclamation mark shows strong feeling, like surprise. This is a plain question.','感叹号表示强烈的感情，比如惊讶。这只是一个普通的问句。'))],
+    ans:1,full:'How old are you?',
+    hint:X('Is the sentence telling us something, or asking us something?','这个句子是在告诉我们什么，还是在提问？'),
+    why:X('The sentence asks a question, so it ends with a question mark.','这是问句，所以句末用问号。')},
+   {id:3,lvl:1,tags:['cap'],type:'tap',art:'🗼',
+    en:'Tap the one word that needs a capital letter. Then press Check.',zh:'点一点需要大写的那个词，然后按“检查答案”。',
+    words:['We','visited','paris','last','summer.'],need:[2],
+    full:'We visited Paris last summer.',
+    hint:X('Think about the names of places. Is summer a name?','想一想地方的名字。summer 是名字吗？'),
+    why:X('Paris is the name of a city, so it needs a capital P. Summer is a season, so it stays small.','Paris 是城市的名字，所以 P 要大写。summer 是季节，用小写。')},
+   {id:4,lvl:2,tags:['apos'],type:'word',art:'🥕',
+    en:'Choose the right word to fill the gap.',zh:'选出正确的词来填空。',
+    pre:'I',post:'like carrots.',
+    opts:[O('dont',X('A mark is missing! Don’t is short for do not, so it needs an apostrophe.','漏掉了撇号！don’t 是 do not 的缩写，需要撇号。')),
+          O('don’t'),
+          O('do’nt',X('Nearly! The apostrophe goes where the missing o would be: don’t.','差一点！撇号要放在漏掉的字母 o 的位置：don’t。'))],
+    ans:1,full:'I don’t like carrots.',
+    hint:X('Do not becomes don’t. Which letter is missing, and where does the apostrophe go?','do not 缩写成 don’t。漏掉了哪个字母？撇号放在哪里？'),
+    why:X('Don’t is short for do not. The apostrophe takes the place of the missing o.','don’t 是 do not 的缩写，撇号代替了漏掉的字母 o。')},
+   {id:5,lvl:2,tags:['apos'],type:'word',art:'🎒',
+    en:'Choose the right word to fill the gap.',zh:'选出正确的词来填空。',
+    pre:'This is',post:'bag.',
+    opts:[O('Sams',X('Sams has no apostrophe, so it does not show that the bag belongs to Sam.','Sams 没有撇号，不能表示书包属于 Sam。')),
+          O('Sam’s'),
+          O('Sams’',X('The apostrophe is in the wrong place. For one person we write apostrophe s after the name.','撇号的位置不对。表示一个人拥有某物，要在名字后面加撇号和 s。'))],
+    ans:1,full:'This is Sam’s bag.',
+    hint:X('The bag belongs to Sam. What do we add to a name to show who owns something?','书包是 Sam 的。要表示谁拥有某物，名字后面要加什么？'),
+    why:X('Sam’s shows that the bag belongs to Sam. We add an apostrophe and an s.','Sam’s 表示书包属于 Sam。我们加上撇号和 s。')},
+   {id:6,lvl:2,tags:['comma'],type:'pick',art:'🧳',
+    en:'Which sentence uses commas correctly?',zh:'哪一个句子的逗号用得正确？',
+    opts:[O('I packed a hat a towel and a book.',X('The things in the list need commas between them.','列举的事物之间需要用逗号隔开。')),
+          O('I packed a hat, a towel and a book.'),
+          O('I packed a hat, a towel, and, a book.',X('Too many commas! Use commas between the items, but not before or after and.','逗号太多了！事物之间用逗号隔开，但 and 前后都不用逗号。'))],
+    ans:1,full:'I packed a hat, a towel and a book.',
+    hint:X('Put commas between the first items, then join the last two with and.','用逗号隔开前面的事物，最后两项用 and 连接。'),
+    why:X('Commas separate the items in a list. The last two items are joined with and, with no comma before it.','逗号隔开列举的事物。最后两项用 and 连接，and 前面不加逗号。')},
+   {id:7,lvl:2,tags:['cap'],type:'tap',art:'♟️',
+    en:'Tap all 4 words that need a capital letter. Then press Check.',zh:'点出所有需要大写的 4 个词，然后按“检查答案”。',
+    words:['on','friday','mia','and','i','played','chess.'],need:[0,1,2,4],
+    full:'On Friday Mia and I played chess.',
+    hint:X('Think about: the first word, a day, a name, and the word I.','想一想：第一个词、星期、人名，还有单词 I。'),
+    why:X('On starts the sentence. Friday is a day. Mia is a name. And I is always a capital letter.','On 是句子的第一个词；Friday 是星期；Mia 是人名；I（我）永远要大写。')},
+   {id:8,lvl:3,tags:['comma','cap','stop'],type:'pick',art:'🙋',
+    en:'Which sentence is perfect?',zh:'哪一个句子完全正确？',
+    opts:[O('Tom, can you help me?'),
+          O('Tom can you help me?',X('We are speaking to Tom, so we need a comma after his name.','我们在对 Tom 说话，所以名字后面需要逗号。')),
+          O('Tom, can you help me.',X('This sentence asks a question, so it needs a question mark, not a full stop.','这是问句，应该用问号，而不是句号。')),
+          O('tom, can you help me?',X('Tom is a name, so it needs a capital T.','Tom 是人名，所以 T 要大写。'))],
+    ans:0,full:'Tom, can you help me?',
+    hint:X('Check four things: the capital letter, the name, the comma and the end mark.','检查四件事：大写字母、名字、逗号和句末标点。'),
+    why:X('Tom is a name, so it has a capital letter. We add a comma when we speak to him. The sentence asks, so it ends with a question mark.','Tom 是人名，要大写；对他说话，名字后面加逗号；这是问句，句末用问号。')},
+   {id:9,lvl:3,tags:['apos','cap'],type:'pick',art:'☀️',
+    en:'Which sentence has no mistakes?',zh:'哪一个句子没有错误？',
+    opts:[O('Its a sunny day in spring.',X('It’s is short for it is, so it needs an apostrophe.','It’s 是 it is 的缩写，需要撇号。')),
+          O('It’s a sunny day in Spring.',X('Seasons are not names, so spring stays small.','季节不是名字，所以 spring 要用小写。')),
+          O('It’s a sunny day in spring.'),
+          O('it’s a sunny day in spring.',X('A sentence starts with a capital letter, so it needs a capital I.','句子以大写字母开头，所以 I 要大写。'))],
+    ans:2,full:'It’s a sunny day in spring.',
+    hint:X('Check the start of the sentence, the short word it’s, and the season.','检查句子的开头、缩写词 it’s 和季节。'),
+    why:X('It’s starts with a capital letter and has an apostrophe for the missing i. Spring is a season, so it stays small.','It’s 开头大写，撇号代替了漏掉的字母 i。spring 是季节，用小写。')},
+   {id:10,lvl:3,tags:['cap','stop','apos'],type:'pick',art:'🪁',
+    en:'Which is the correct way to write this sentence?',zh:'这个句子应该怎么写才正确？',
+    show:'oh dear my kite isnt in the garden',
+    opts:[O('Oh dear! My kite isn’t in the garden.'),
+          O('Oh dear, my kite isnt in the garden.',X('Isn’t needs an apostrophe for the missing o.','isn’t 需要用撇号代替漏掉的字母 o。')),
+          O('oh dear! My kite isn’t in the garden.',X('The first word of the sentence needs a capital letter: Oh.','句子的第一个词需要大写：Oh。')),
+          O('Oh dear! my kite isn’t in the garden.',X('After an exclamation mark a new sentence starts, so My needs a capital M.','感叹号后面是新的句子，所以 My 的 M 要大写。'))],
+    ans:0,full:'Oh dear! My kite isn’t in the garden.',
+    hint:X('Check the first word, how Oh dear shows feeling, the new sentence after it, the apostrophe and the end mark.','检查第一个词、Oh dear 如何表达感情、后面的新句子、撇号和句末标点。'),
+    why:X('Oh dear shows worry, so it ends with an exclamation mark. Then a new sentence begins with My. Isn’t needs an apostrophe, and the sentence ends with a full stop.','Oh dear 表示着急，所以后面加感叹号。接着是以 My 开头的新句子。isn’t 需要撇号，句末用句号。')},
+   {id:11,lvl:1,tags:['stop'],type:'mark',art:'🌳',
+    en:'Which mark goes at the end of this sentence?',zh:'这个句子的末尾应该用哪个标点符号？',
+    pre:'We are going to the park',post:'',
+    opts:[M('.','full stop','句号'),
+          M('?','question mark','问号',X('A question mark is for asking. This sentence tells us something.','问号用于提问。这个句子是在陈述。')),
+          M('!','exclamation mark','感叹号',X('An exclamation mark shows strong feeling. This is a calm sentence that tells us something.','感叹号表示强烈的感情。这是一个平静的陈述句。'))],
+    ans:0,full:'We are going to the park.',
+    hint:X('Is the sentence asking, telling or shouting?','这个句子是在提问、陈述，还是在喊叫？'),
+    why:X('The sentence tells us something, so it ends with a full stop.','这是陈述句，所以句末用句号。')},
+   {id:12,lvl:1,tags:['cap'],type:'tap',art:'🏙️',
+    en:'Tap the 2 words that need a capital letter. Then press Check.',zh:'点出需要大写的 2 个词，然后按“检查答案”。',
+    words:['my','friend','lives','in','london.'],need:[0,4],
+    full:'My friend lives in London.',
+    hint:X('Look at the first word. Then think about the name of a city.','先看第一个词，再想一想城市的名字。'),
+    why:X('My starts the sentence. London is the name of a city, so it needs a capital L.','My 是句子的第一个词；London 是城市的名字，所以 L 要大写。')},
+   {id:13,lvl:1,tags:['cap'],type:'pick',art:'🎨',
+    en:'Which sentence is written correctly?',zh:'哪一个句子写得正确？',
+    opts:[O('We have art on monday.',X('Days of the week always start with a capital letter: Monday.','星期几总是以大写字母开头：Monday。')),
+          O('We have art on Monday.'),
+          O('we have art on Monday.',X('The first word of a sentence needs a capital letter.','句子的第一个词要大写。'))],
+    ans:1,full:'We have art on Monday.',
+    hint:X('Check the first word and the day of the week.','检查第一个词和星期几。'),
+    why:X('We starts the sentence and Monday is a day, so both need capital letters.','We 是句子的第一个词，Monday 是星期几，所以都要大写。')},
+   {id:14,lvl:1,tags:['stop'],type:'mark',art:'🎂',
+    en:'Which mark goes at the end of this sentence?',zh:'这个句子的末尾应该用哪个标点符号？',
+    pre:'Wow, what a big cake',post:'',
+    opts:[M('.','full stop','句号',X('A full stop is calm. This sentence shows surprise.','句号比较平静。这个句子表示惊讶。')),
+          M('?','question mark','问号',X('Nobody is asking anything here.','这里没有人在提问。')),
+          M('!','exclamation mark','感叹号')],
+    ans:2,full:'Wow, what a big cake!',
+    hint:X('The word wow shows strong feeling. Which mark shows strong feeling?','Wow 表示强烈的感情。哪个标点符号表示强烈的感情？'),
+    why:X('The sentence shows surprise, so it ends with an exclamation mark.','这句话表示惊讶，所以句末用感叹号。')},
+   {id:15,lvl:1,tags:['cap'],type:'word',art:'🧒',
+    en:'Choose the right word to fill the gap.',zh:'选出正确的词来填空。',
+    pre:'Today',post:'am seven years old.',
+    opts:[O('i',X('The word I is always a capital letter.','单词 I（我）永远要大写。')),
+          O('I'),
+          O('me',X('We say I am, not me am.','我们说 I am，不说 me am。'))],
+    ans:1,full:'Today I am seven years old.',
+    hint:X('Which word means the person who is speaking? Is it a capital letter?','哪个词表示说话的人？它要大写吗？'),
+    why:X('The word I is always a capital letter, wherever it is in the sentence.','单词 I（我）无论在句子的什么位置，都要大写。')},
+   {id:16,lvl:1,tags:['cap'],type:'tap',art:'🐕',
+    en:'Tap the 2 words that need a capital letter. Then press Check.',zh:'点出需要大写的 2 个词，然后按“检查答案”。',
+    words:['tom','and','sara','have','a','dog.'],need:[0,2],
+    full:'Tom and Sara have a dog.',
+    hint:X('Two of these words are names of people.','这些词里有两个是人名。'),
+    why:X('Tom and Sara are names, so they need capital letters. Dog is an animal, not a name.','Tom 和 Sara 是人名，要大写。dog 是动物，不是名字。')},
+   {id:17,lvl:1,tags:['cap'],type:'pick',art:'🍕',
+    en:'Which sentence is written correctly?',zh:'哪一个句子写得正确？',
+    opts:[O('Pizza comes from italy.',X('Italy is the name of a country, so it needs a capital I.','Italy 是国家的名字，所以 I 要大写。')),
+          O('Pizza comes from Italy.'),
+          O('pizza comes from Italy.',X('The first word of a sentence needs a capital letter.','句子的第一个词要大写。'))],
+    ans:1,full:'Pizza comes from Italy.',
+    hint:X('Check the first word and the name of the country.','检查第一个词和国家的名字。'),
+    why:X('Pizza starts the sentence and Italy is a country, so both need capital letters.','Pizza 是第一个词，Italy 是国家名，所以都要大写。')},
+   {id:18,lvl:2,tags:['apos'],type:'word',art:'🏠',
+    en:'Choose the right word to fill the gap.',zh:'选出正确的词来填空。',
+    pre:'She',post:'here today.',
+    opts:[O('isnt',X('A mark is missing! Isn’t is short for is not, so it needs an apostrophe.','漏掉了撇号！isn’t 是 is not 的缩写，需要撇号。')),
+          O('isn’t'),
+          O('is’nt',X('Nearly! The apostrophe goes where the missing o would be: isn’t.','差一点！撇号要放在漏掉的字母 o 的位置：isn’t。'))],
+    ans:1,full:'She isn’t here today.',
+    hint:X('Is not becomes isn’t. Which letter is missing?','is not 缩写成 isn’t。漏掉了哪个字母？'),
+    why:X('Isn’t is short for is not. The apostrophe takes the place of the missing o.','isn’t 是 is not 的缩写，撇号代替了漏掉的字母 o。')},
+   {id:19,lvl:2,tags:['apos'],type:'word',art:'🪁',
+    en:'Choose the right word to fill the gap.',zh:'选出正确的词来填空。',
+    pre:'This is',post:'kite.',
+    opts:[O('Annas',X('Annas has no apostrophe, so it does not show that the kite belongs to Anna.','Annas 没有撇号，不能表示风筝属于 Anna。')),
+          O('Anna’s'),
+          O('Annas’',X('The apostrophe is in the wrong place. For one person we write apostrophe s after the name.','撇号的位置不对。表示一个人拥有某物，要在名字后面加撇号和 s。'))],
+    ans:1,full:'This is Anna’s kite.',
+    hint:X('The kite belongs to Anna. What do we add to her name?','风筝是 Anna 的。要在她的名字后面加什么？'),
+    why:X('Anna’s shows that the kite belongs to Anna. We add an apostrophe and an s.','Anna’s 表示风筝属于 Anna。我们加上撇号和 s。')},
+   {id:20,lvl:2,tags:['comma'],type:'pick',art:'🎒',
+    en:'Which sentence uses commas correctly?',zh:'哪一个句子的逗号用得正确？',
+    opts:[O('My bag is red blue and green.',X('The colours in the list need commas between them.','列举的颜色之间需要用逗号隔开。')),
+          O('My bag is red, blue and green.'),
+          O('My bag is red, blue, and, green.',X('Too many commas! Do not put commas before or after and.','逗号太多了！and 前后都不用逗号。'))],
+    ans:1,full:'My bag is red, blue and green.',
+    hint:X('Put a comma between the first colours, then join the last two with and.','在前面的颜色之间加逗号，最后两个用 and 连接。'),
+    why:X('Commas separate the items in a list. The last two items are joined with and.','逗号隔开列举的事物。最后两项用 and 连接。')},
+   {id:21,lvl:2,tags:['comma','cap'],type:'pick',art:'🪑',
+    en:'Which sentence is perfect?',zh:'哪一个句子完全正确？',
+    opts:[O('Please sit down Ben.',X('We are speaking to Ben, so we need a comma before his name.','我们在对 Ben 说话，所以名字前面需要逗号。')),
+          O('Please sit down, Ben.'),
+          O('please sit down, Ben.',X('The first word of a sentence needs a capital letter.','句子的第一个词要大写。')),
+          O('Please sit down, ben.',X('Ben is a name, so it needs a capital B.','Ben 是人名，所以 B 要大写。'))],
+    ans:1,full:'Please sit down, Ben.',
+    hint:X('Check the first word, the comma and the name.','检查第一个词、逗号和名字。'),
+    why:X('We put a comma before the name of the person we speak to. Please and Ben both need capital letters.','对某人说话时，在名字前面加逗号。Please 和 Ben 都要大写。')},
+   {id:22,lvl:2,tags:['cap'],type:'tap',art:'🗾',
+    en:'Tap all 3 words that need a capital letter. Then press Check.',zh:'点出所有需要大写的 3 个词，然后按“检查答案”。',
+    words:['last','tuesday','we','visited','japan.'],need:[0,1,4],
+    full:'Last Tuesday we visited Japan.',
+    hint:X('Think about: the first word, a day and a country.','想一想：第一个词、星期和国家。'),
+    why:X('Last starts the sentence. Tuesday is a day. Japan is a country.','Last 是句子的第一个词；Tuesday 是星期；Japan 是国家。')},
+   {id:23,lvl:2,tags:['stop'],type:'mark',art:'🚧',
+    en:'Which mark goes at the end of this sentence?',zh:'这个句子的末尾应该用哪个标点符号？',
+    pre:'Look out',post:'',
+    opts:[M('.','full stop','句号',X('A full stop is calm. This is a warning.','句号比较平静。这是一个警告。')),
+          M('?','question mark','问号',X('Nobody is asking a question.','没有人在提问。')),
+          M('!','exclamation mark','感叹号')],
+    ans:2,full:'Look out!',
+    hint:X('This is a loud warning. Which mark shows strong feeling?','这是一个大声的警告。哪个标点符号表示强烈的感情？'),
+    why:X('A warning is a sudden, strong shout, so it ends with an exclamation mark.','警告是突然的、强烈的喊声，所以句末用感叹号。')},
+   {id:24,lvl:3,tags:['cap','apos'],type:'pick',art:'🐈',
+    en:'Which sentence has no mistakes?',zh:'哪一个句子没有错误？',
+    opts:[O('Mrs Khan’s cat isn’t at home.'),
+          O('mrs Khan’s cat isn’t at home.',X('Mrs is a title and starts the sentence, so it needs a capital M.','Mrs 是称呼，也是第一个词，所以 M 要大写。')),
+          O('Mrs Khans cat isn’t at home.',X('The cat belongs to Mrs Khan, so we need an apostrophe: Khan’s.','猫属于 Khan 太太，所以要加撇号：Khan’s。')),
+          O('Mrs Khan’s cat isnt at home.',X('Isn’t is short for is not, so it needs an apostrophe.','isn’t 是 is not 的缩写，需要撇号。'))],
+    ans:0,full:'Mrs Khan’s cat isn’t at home.',
+    hint:X('Check the capital letters, the apostrophe for belonging and the apostrophe in isn’t.','检查大写字母、表示所属的撇号和 isn’t 里的撇号。'),
+    why:X('Mrs and Khan are capitals. Khan’s shows the cat belongs to her. Isn’t has an apostrophe for the missing o.','Mrs 和 Khan 要大写；Khan’s 表示猫属于她；isn’t 的撇号代替了漏掉的 o。')},
+   {id:25,lvl:3,tags:['comma','stop','cap'],type:'pick',art:'🤔',
+    en:'Which sentence is perfect?',zh:'哪一个句子完全正确？',
+    opts:[O('What are you doing, Mark?'),
+          O('What are you doing Mark?',X('We are speaking to Mark, so we need a comma before his name.','我们在对 Mark 说话，所以名字前面需要逗号。')),
+          O('What are you doing, Mark.',X('This sentence asks something, so it needs a question mark.','这是问句，所以要用问号。')),
+          O('what are you doing, Mark?',X('The first word of a sentence needs a capital letter.','句子的第一个词要大写。'))],
+    ans:0,full:'What are you doing, Mark?',
+    hint:X('Check four things: the capital letter, the comma, the name and the end mark.','检查四件事：大写字母、逗号、名字和句末标点。'),
+    why:X('What starts the sentence. The comma goes before the name Mark. The sentence asks, so it ends with a question mark.','What 是第一个词；逗号放在名字 Mark 前面；这是问句，句末用问号。')},
+   {id:26,lvl:3,tags:['comma','cap'],type:'pick',art:'🛝',
+    en:'Which sentence has no mistakes?',zh:'哪一个句子没有错误？',
+    opts:[O('Anna, Ben and Cara went to the park.'),
+          O('Anna Ben and Cara went to the park.',X('The names in the list need commas between them.','列举的名字之间需要用逗号隔开。')),
+          O('Anna, ben and cara went to the park.',X('Ben and Cara are names, so they need capital letters.','Ben 和 Cara 是人名，所以要大写。')),
+          O('Anna, Ben, and, Cara went to the park.',X('Too many commas! Do not put commas before or after and.','逗号太多了！and 前后都不用逗号。'))],
+    ans:0,full:'Anna, Ben and Cara went to the park.',
+    hint:X('Check the capital letters on every name, then check the commas.','检查每个名字的大写字母，再检查逗号。'),
+    why:X('Every name has a capital letter. Commas separate the names and the last two are joined with and.','每个名字都要大写。逗号隔开名字，最后两个用 and 连接。')},
+   {id:27,lvl:3,tags:['cap','apos'],type:'pick',art:'⚽',
+    en:'Which is the correct way to write this sentence?',zh:'这个句子应该怎么写才正确？',
+    show:'we cant play on friday',
+    opts:[O('We can’t play on Friday.'),
+          O('we can’t play on Friday.',X('The first word of a sentence needs a capital letter.','句子的第一个词要大写。')),
+          O('We cant play on Friday.',X('Can’t is short for cannot, so it needs an apostrophe.','can’t 是 cannot 的缩写，需要撇号。')),
+          O('We can’t play on friday.',X('Friday is a day of the week, so it needs a capital F.','Friday 是星期几，所以 F 要大写。'))],
+    ans:0,full:'We can’t play on Friday.',
+    hint:X('Check the first word, the short word can’t and the day.','检查第一个词、缩写词 can’t 和星期几。'),
+    why:X('We starts the sentence, can’t needs an apostrophe and Friday is a day, so it needs a capital F.','We 是第一个词；can’t 需要撇号；Friday 是星期几，F 要大写。')},
+   {id:28,lvl:3,tags:['cap','stop','apos'],type:'pick',art:'🚲',
+    en:'Which is the correct way to write this sentence?',zh:'这个句子应该怎么写才正确？',
+    show:'help my bike isnt here',
+    opts:[O('Help! My bike isn’t here.'),
+          O('help! My bike isn’t here.',X('The first word of the sentence needs a capital letter: Help.','句子的第一个词需要大写：Help。')),
+          O('Help! my bike isn’t here.',X('After an exclamation mark a new sentence starts, so My needs a capital M.','感叹号后面是新的句子，所以 My 的 M 要大写。')),
+          O('Help! My bike isnt here.',X('Isn’t needs an apostrophe for the missing o.','isn’t 需要用撇号代替漏掉的字母 o。'))],
+    ans:0,full:'Help! My bike isn’t here.',
+    hint:X('Check how Help shows feeling, the new sentence after it and the apostrophe.','检查 Help 如何表达感情、后面的新句子和撇号。'),
+    why:X('Help shows worry, so it ends with an exclamation mark. Then a new sentence begins with My. Isn’t needs an apostrophe.','Help 表示着急，后面加感叹号。接着是以 My 开头的新句子。isn’t 需要撇号。')},
+   {id:29,lvl:3,tags:['cap'],type:'tap',art:'🧧',
+    en:'Tap all 5 words that need a capital letter. Then press Check.',zh:'点出所有需要大写的 5 个词，然后按“检查答案”。',
+    words:['on','saturday','ben','and','i','visited','china.'],need:[0,1,2,4,6],
+    full:'On Saturday Ben and I visited China.',
+    hint:X('Think about: the first word, a day, a name, the word I and a country.','想一想：第一个词、星期、人名、单词 I 和国家。'),
+    why:X('On starts the sentence. Saturday is a day. Ben is a name. I is always a capital. China is a country.','On 是第一个词；Saturday 是星期；Ben 是人名；I 永远要大写；China 是国家。')},
+   {id:30,lvl:3,tags:['cap','apos'],type:'pick',art:'🎂',
+    en:'Which is the correct way to write this sentence?',zh:'这个句子应该怎么写才正确？',
+    show:'its jakes birthday on monday',
+    opts:[O('It’s Jake’s birthday on Monday.'),
+          O('Its Jake’s birthday on Monday.',X('It’s is short for it is, so it needs an apostrophe.','It’s 是 it is 的缩写，需要撇号。')),
+          O('It’s Jakes birthday on Monday.',X('The birthday belongs to Jake, so we need an apostrophe: Jake’s.','生日属于 Jake，所以要加撇号：Jake’s。')),
+          O('It’s Jake’s birthday on monday.',X('Monday is a day of the week, so it needs a capital M.','Monday 是星期几，所以 M 要大写。'))],
+    ans:0,full:'It’s Jake’s birthday on Monday.',
+    hint:X('Check the two apostrophes and the day of the week.','检查两个撇号和星期几。'),
+    why:X('It’s is short for it is. Jake’s shows the birthday belongs to Jake. Monday is a day, so it needs a capital M.','It’s 是 it is 的缩写；Jake’s 表示生日属于 Jake；Monday 是星期几，M 要大写。')},
+   {id:31,lvl:1,tags:['cap','stop'],type:'pick',art:'🌞',
+    en:'Which sentence is written correctly?',zh:'哪一个句子写得正确？',
+    opts:[O('the sun is hot.',X('This sentence starts with a small t. Every sentence needs a capital letter at the start.','这个句子以小写 t 开头。每个句子的开头都要大写。')),
+          O('The sun is hot.'),
+          O('The sun is hot',X('The sentence needs a full stop at the end.','句子末尾需要加句号。'))],
+    ans:1,full:'The sun is hot.',
+    hint:X('Check the first letter, then check the end of the sentence.','先看第一个字母，再看句子的末尾。'),
+    why:X('The sentence starts with a capital letter and tells us something, so it ends with a full stop.','句子以大写字母开头，是陈述句，所以句末用句号。')},
+   {id:32,lvl:1,tags:['stop'],type:'mark',art:'📛',
+    en:'Which mark goes at the end of this sentence?',zh:'这个句子的末尾应该用哪个标点符号？',
+    pre:'What is your name',post:'',
+    opts:[M('.','full stop','句号',X('A full stop tells us something. This sentence asks something.','句号用于陈述。这个句子是在提问。')),
+          M('?','question mark','问号'),
+          M('!','exclamation mark','感叹号',X('An exclamation mark shows strong feeling. This is a plain question.','感叹号表示强烈的感情。这只是一个普通的问句。'))],
+    ans:1,full:'What is your name?',
+    hint:X('Is the sentence telling us something, or asking us something?','这个句子是在告诉我们什么，还是在提问？'),
+    why:X('The sentence asks a question, so it ends with a question mark.','这是问句，所以句末用问号。')},
+   {id:33,lvl:1,tags:['stop'],type:'mark',art:'🐈',
+    en:'Which mark goes at the end of this sentence?',zh:'这个句子的末尾应该用哪个标点符号？',
+    pre:'The cat is on the mat',post:'',
+    opts:[M('.','full stop','句号'),
+          M('?','question mark','问号',X('This sentence does not ask anything. It tells us where the cat is.','这个句子不是提问，而是在告诉我们猫在哪里。')),
+          M('!','exclamation mark','感叹号',X('There is no strong feeling here. It is a plain, calm sentence.','这里没有强烈的感情，只是一个平静的陈述句。'))],
+    ans:0,full:'The cat is on the mat.',
+    hint:X('Is the sentence asking, shouting or just telling?','这个句子是在提问、大喊，还是只是陈述？'),
+    why:X('The sentence tells us something, so it ends with a full stop.','这是陈述句，所以句末用句号。')},
+   {id:34,lvl:1,tags:['cap'],type:'tap',art:'🧒',
+    en:'Tap the one word that needs a capital letter. Then press Check.',zh:'点一点需要大写的那个词，然后按“检查答案”。',
+    words:['My','friend','is','called','ben.'],need:[4],
+    full:'My friend is called Ben.',
+    hint:X('One word is the name of a person.','有一个词是人的名字。'),
+    why:X('Ben is the name of a person, so it needs a capital B. My already has its capital letter.','Ben 是人名，所以 B 要大写。My 已经大写了。')},
+   {id:35,lvl:1,tags:['cap'],type:'pick',art:'🏫',
+    en:'Which sentence is correct?',zh:'哪一个句子是正确的？',
+    opts:[O('we met anna at school.',X('The first word needs a capital letter, and Anna is a name.','第一个词要大写，而且 Anna 是人名。')),
+          O('We met Anna at school.'),
+          O('We Met anna at school.',X('Met stays small in the middle of a sentence, and the name Anna needs a capital A.','Met 在句子中间要小写，而人名 Anna 的 A 要大写。'))],
+    ans:1,full:'We met Anna at school.',
+    hint:X('Look for the first word and the name of a person.','找一找第一个词和人名。'),
+    why:X('We starts the sentence and Anna is a name, so both have capital letters. The other words stay small.','We 是第一个词，Anna 是人名，所以都要大写，其他词用小写。')},
+   {id:36,lvl:1,tags:['cap'],type:'tap',art:'🏊',
+    en:'Tap the one word that needs a capital letter. Then press Check.',zh:'点一点需要大写的那个词，然后按“检查答案”。',
+    words:['We','go','swimming','on','monday.'],need:[4],
+    full:'We go swimming on Monday.',
+    hint:X('Think about days of the week.','想一想星期几的写法。'),
+    why:X('Monday is a day of the week, so it needs a capital M.','Monday 是星期几，所以 M 要大写。')},
+   {id:37,lvl:1,tags:['cap'],type:'word',art:'🍕',
+    en:'Choose the right word to fill the gap.',zh:'选出正确的词来填空。',
+    pre:'Tom and',post:'like pizza.',
+    opts:[O('i',X('The word I is always a capital letter.','单词 I（我）永远要大写。')),
+          O('I')],
+    ans:1,full:'Tom and I like pizza.',
+    hint:X('This word means the person who is speaking.','这个词表示正在说话的人，也就是“我”。'),
+    why:X('The word I is always a capital letter, wherever it is in a sentence.','单词 I（我）无论在句子的什么位置，都要大写。')},
+   {id:38,lvl:1,tags:['cap'],type:'tap',art:'✈️',
+    en:'Tap all 2 words that need a capital letter. Then press Check.',zh:'点出所有需要大写的 2 个词，然后按“检查答案”。',
+    words:['We','flew','to','spain','with','tom.'],need:[3,5],
+    full:'We flew to Spain with Tom.',
+    hint:X('One word is a country and one is a person.','一个词是国家名，一个词是人名。'),
+    why:X('Spain is the name of a country and Tom is the name of a person, so both need capital letters.','Spain 是国家名，Tom 是人名，所以都要大写。')},
+   {id:39,lvl:2,tags:['comma'],type:'pick',art:'🍎',
+    en:'Which sentence uses commas correctly?',zh:'哪一个句子的逗号用得正确？',
+    opts:[O('I like apples pears and plums.',X('The things in the list need commas between them.','列举的事物之间需要用逗号隔开。')),
+          O('I like apples, pears and plums.'),
+          O('I like apples, pears, and, plums.',X('Too many commas! Do not put commas before or after and.','逗号太多了！and 前后都不用逗号。'))],
+    ans:1,full:'I like apples, pears and plums.',
+    hint:X('Put a comma between the first items, then join the last two with and.','用逗号隔开前面的事物，最后两项用 and 连接。'),
+    why:X('Commas separate the items in a list. The last two items are joined with and.','逗号隔开列举的事物，最后两项用 and 连接。')},
+   {id:40,lvl:2,tags:['comma'],type:'pick',art:'🛒',
+    en:'Which sentence uses commas correctly?',zh:'哪一个句子的逗号用得正确？',
+    opts:[O('We bought milk eggs bread and jam.',X('There are no commas, so the list is hard to read.','没有逗号，列举的内容不容易读清楚。')),
+          O('We bought, milk, eggs, bread, and jam.',X('We do not put a comma straight after bought or before and in this list.','在 bought 后面和 and 前面都不用加逗号。')),
+          O('We bought milk, eggs, bread and jam.')],
+    ans:2,full:'We bought milk, eggs, bread and jam.',
+    hint:X('Commas go between the items, but not before the last and.','逗号放在事物之间，但最后的 and 前面不加。'),
+    why:X('Commas go between milk, eggs and bread. The last two items are joined with and.','逗号放在 milk、eggs 和 bread 之间，最后两项用 and 连接。')},
+   {id:41,lvl:2,tags:['apos'],type:'word',art:'🚌',
+    en:'Choose the right word to fill the gap.',zh:'选出正确的词来填空。',
+    pre:'She',post:'go to school on Sundays.',
+    opts:[O('doesnt',X('A mark is missing! Doesn’t is short for does not.','漏掉了撇号！doesn’t 是 does not 的缩写。')),
+          O('doesn’t'),
+          O('does’nt',X('Nearly! The apostrophe goes where the missing o would be: doesn’t.','差一点！撇号要放在漏掉的字母 o 的位置：doesn’t。'))],
+    ans:1,full:'She doesn’t go to school on Sundays.',
+    hint:X('Does not becomes doesn’t. Which letter is missing?','does not 缩写成 doesn’t。漏掉了哪个字母？'),
+    why:X('Doesn’t is short for does not. The apostrophe takes the place of the missing o.','doesn’t 是 does not 的缩写，撇号代替了漏掉的字母 o。')},
+   {id:42,lvl:2,tags:['apos'],type:'word',art:'⏰',
+    en:'Choose the right word to fill the gap.',zh:'选出正确的词来填空。',
+    pre:'We',post:'late for school.',
+    opts:[O('arent',X('A mark is missing! Aren’t is short for are not.','漏掉了撇号！aren’t 是 are not 的缩写。')),
+          O('aren’t'),
+          O('are’nt',X('Nearly! The apostrophe goes where the missing o would be: aren’t.','差一点！撇号要放在漏掉的字母 o 的位置：aren’t。'))],
+    ans:1,full:'We aren’t late for school.',
+    hint:X('Are not becomes aren’t. Where is the missing letter?','are not 缩写成 aren’t。漏掉的字母在哪里？'),
+    why:X('Aren’t is short for are not. The apostrophe takes the place of the missing o.','aren’t 是 are not 的缩写，撇号代替了漏掉的字母 o。')},
+   {id:43,lvl:2,tags:['apos'],type:'word',art:'🛏️',
+    en:'Choose the right word to fill the gap.',zh:'选出正确的词来填空。',
+    pre:'That is my',post:'room.',
+    opts:[O('sisters',X('Sisters has no apostrophe, so it does not show that the room belongs to my sister.','sisters 没有撇号，不能表示房间属于我姐姐（妹妹）。')),
+          O('sister’s'),
+          O('sisters’',X('The apostrophe is in the wrong place. For one sister we write apostrophe s after the word.','撇号的位置不对。表示一位姐妹拥有某物，要在词后面加撇号和 s。'))],
+    ans:1,full:'That is my sister’s room.',
+    hint:X('The room belongs to one sister. What do we add to show who owns something?','房间属于一位姐妹。要表示谁拥有某物，要加什么？'),
+    why:X('Sister’s shows that the room belongs to my sister. We add an apostrophe and an s.','sister’s 表示房间属于我的姐妹。我们加上撇号和 s。')},
+   {id:44,lvl:2,tags:['apos'],type:'word',art:'🐕',
+    en:'Choose the right word to fill the gap.',zh:'选出正确的词来填空。',
+    pre:'The',post:'tail is very long.',
+    opts:[O('dogs',X('Dogs has no apostrophe, so it does not show that the tail belongs to the dog.','dogs 没有撇号，不能表示尾巴属于这只狗。')),
+          O('dog’s'),
+          O('dogs’',X('The apostrophe is in the wrong place. For one dog we write apostrophe s after the word.','撇号的位置不对。表示一只狗拥有某物，要在词后面加撇号和 s。'))],
+    ans:1,full:'The dog’s tail is very long.',
+    hint:X('The tail belongs to one dog. What do we add to show who owns something?','尾巴属于一只狗。要表示谁拥有某物，要加什么？'),
+    why:X('Dog’s shows that the tail belongs to the dog. We add an apostrophe and an s.','dog’s 表示尾巴属于这只狗。我们加上撇号和 s。')},
+   {id:45,lvl:2,tags:['apos','cap'],type:'word',art:'🛝',
+    en:'Choose the right word to fill the gap.',zh:'选出正确的词来填空。',
+    pre:'',post:'go to the park.',
+    opts:[O('Lets',X('A mark is missing! Let’s is short for let us.','漏掉了撇号！let’s 是 let us 的缩写。')),
+          O('Let’s'),
+          O('Lets’',X('The apostrophe is in the wrong place. It goes where the missing u would be: Let’s.','撇号的位置不对。要放在漏掉的字母 u 的位置：Let’s。'))],
+    ans:1,full:'Let’s go to the park.',
+    hint:X('Let us becomes let’s. Which letter is missing?','let us 缩写成 let’s。漏掉了哪个字母？'),
+    why:X('Let’s is short for let us. The apostrophe takes the place of the missing u.','let’s 是 let us 的缩写，撇号代替了漏掉的字母 u。')},
+   {id:46,lvl:2,tags:['comma','cap','stop'],type:'pick',art:'🚪',
+    en:'Which sentence is perfect?',zh:'哪一个句子完全正确？',
+    opts:[O('Anna, please close the door.'),
+          O('Anna please close the door.',X('We are speaking to Anna, so we need a comma after her name.','我们在对 Anna 说话，所以名字后面需要逗号。')),
+          O('Anna, please close the door',X('The sentence needs a full stop at the end.','句子末尾需要加句号。')),
+          O('anna, please close the door.',X('Anna is a name, so it needs a capital A.','Anna 是人名，所以 A 要大写。'))],
+    ans:0,full:'Anna, please close the door.',
+    hint:X('Check the capital letter, the comma after the name and the end mark.','检查大写字母、名字后面的逗号和句末标点。'),
+    why:X('Anna is a name, so it has a capital letter. We add a comma when we speak to her, and the sentence ends with a full stop.','Anna 是人名，要大写；对她说话，名字后面加逗号；句末用句号。')},
+   {id:47,lvl:2,tags:['cap','stop'],type:'pick',art:'🏠',
+    en:'Which sentence is written correctly?',zh:'哪一个句子写得正确？',
+    opts:[O('Where do you live?'),
+          O('Where do you live.',X('This sentence asks something, so it needs a question mark.','这是问句，所以要用问号。')),
+          O('where do you live?',X('A sentence starts with a capital letter, even a question.','句子以大写字母开头，问句也一样。'))],
+    ans:0,full:'Where do you live?',
+    hint:X('Check the first letter and the end mark.','检查第一个字母和句末标点。'),
+    why:X('A question starts with a capital letter and ends with a question mark.','问句以大写字母开头，以问号结尾。')},
+   {id:48,lvl:2,tags:['stop'],type:'mark',art:'🌷',
+    en:'Which mark goes at the end of this sentence?',zh:'这个句子的末尾应该用哪个标点符号？',
+    pre:'How lovely this garden is',post:'',
+    opts:[M('.','full stop','句号',X('A full stop is calm. This sentence shows strong feeling.','句号很平静，而这个句子表达了强烈的感情。')),
+          M('?','question mark','问号',X('Nobody is asking anything here.','这里没有人在提问。')),
+          M('!','exclamation mark','感叹号')],
+    ans:2,full:'How lovely this garden is!',
+    hint:X('Is the speaker asking, or showing a big feeling?','说话的人是在提问，还是在表达强烈的感情？'),
+    why:X('The sentence shows strong feeling, so it ends with an exclamation mark.','句子表达强烈的感情，所以句末用感叹号。')},
+   {id:49,lvl:2,tags:['cap'],type:'tap',art:'🍰',
+    en:'Tap all 3 words that need a capital letter. Then press Check.',zh:'点出所有需要大写的 3 个词，然后按“检查答案”。',
+    words:['yesterday','lucy','and','i','ate','cake.'],need:[0,1,3],
+    full:'Yesterday Lucy and I ate cake.',
+    hint:X('Think about: the first word, a name, and the word I.','想一想：第一个词、人名，还有单词 I。'),
+    why:X('Yesterday starts the sentence. Lucy is a name. And I is always a capital letter.','Yesterday 是第一个词；Lucy 是人名；I（我）永远要大写。')},
+   {id:50,lvl:2,tags:['comma','cap','stop'],type:'pick',art:'🦁',
+    en:'Which sentence is perfect?',zh:'哪一个句子完全正确？',
+    opts:[O('Mum can we go to the zoo?',X('We are speaking to Mum, so we need a comma after the name.','我们在对 Mum 说话，所以名字后面需要逗号。')),
+          O('Mum, can we go to the zoo?'),
+          O('Mum, can we go to the zoo.',X('This sentence asks a question, so it needs a question mark.','这是问句，应该用问号。')),
+          O('mum, can we go to the zoo?',X('Here Mum is used as a name, so it needs a capital M.','这里 Mum 当作名字使用，所以 M 要大写。'))],
+    ans:1,full:'Mum, can we go to the zoo?',
+    hint:X('Check four things: the capital letter, the name, the comma and the end mark.','检查四件事：大写字母、名字、逗号和句末标点。'),
+    why:X('Mum is used as a name, so it has a capital letter. We add a comma when we speak to her, and the question ends with a question mark.','这里 Mum 当作名字，要大写；对她说话，名字后面加逗号；问句句末用问号。')},
+   {id:51,lvl:3,tags:['cap','apos'],type:'pick',art:'🕷️',
+    en:'Which is the correct way to write this sentence?',zh:'这个句子应该怎么写才正确？',
+    show:'tom and i dont like spiders.',
+    opts:[O('Tom and I don’t like spiders.'),
+          O('Tom and i don’t like spiders.',X('The word I is always a capital letter.','单词 I（我）永远要大写。')),
+          O('Tom and I dont like spiders.',X('Don’t needs an apostrophe for the missing o.','don’t 需要用撇号代替漏掉的字母 o。')),
+          O('tom and I don’t like spiders.',X('Tom is a name and the first word, so it needs a capital T.','Tom 是人名，也是第一个词，所以 T 要大写。'))],
+    ans:0,full:'Tom and I don’t like spiders.',
+    hint:X('Check the name, the word I and the short form don’t.','检查人名、单词 I 和缩写 don’t。'),
+    why:X('Tom is a name and starts the sentence. I is always a capital letter. Don’t needs an apostrophe for the missing o.','Tom 是人名，也是第一个词；I 永远要大写；don’t 需要撇号代替漏掉的 o。')},
+   {id:52,lvl:3,tags:['cap','apos','stop'],type:'pick',art:'🧥',
+    en:'Which is the correct way to write this sentence?',zh:'这个句子应该怎么写才正确？',
+    show:'is that lilys coat',
+    opts:[O('Is that Lily’s coat?'),
+          O('is that Lily’s coat?',X('The first word needs a capital letter.','第一个词需要大写。')),
+          O('Is that Lilys coat?',X('We need an apostrophe to show that the coat belongs to Lily.','需要用撇号表示这件外套属于 Lily。')),
+          O('Is that Lily’s coat.',X('This sentence asks something, so it needs a question mark.','这是问句，所以要用问号。'))],
+    ans:0,full:'Is that Lily’s coat?',
+    hint:X('Check the first word, the name, the apostrophe and the end mark.','检查第一个词、名字、撇号和句末标点。'),
+    why:X('Is starts the sentence. Lily’s shows that the coat belongs to Lily. The sentence asks, so it ends with a question mark.','Is 是第一个词；Lily’s 表示外套属于 Lily；这是问句，句末用问号。')},
+   {id:53,lvl:3,tags:['cap','comma','stop'],type:'pick',art:'🥣',
+    en:'Which is the correct way to write this sentence?',zh:'这个句子应该怎么写才正确？',
+    show:'ben and mia ate soup bread and fruit',
+    opts:[O('Ben and Mia ate soup, bread and fruit.'),
+          O('ben and mia ate soup, bread and fruit.',X('The first word and the names of people need capital letters.','第一个词和人名都需要大写。')),
+          O('Ben and Mia ate soup bread and fruit.',X('The things in the list need commas between them.','列举的事物之间需要用逗号隔开。')),
+          O('Ben and mia ate soup, bread and fruit.',X('Mia is a name, so it needs a capital M.','Mia 是人名，所以 M 要大写。'))],
+    ans:0,full:'Ben and Mia ate soup, bread and fruit.',
+    hint:X('Check the names, the commas in the list and the end mark.','检查人名、列举中的逗号和句末标点。'),
+    why:X('Ben and Mia are names, so they have capital letters. Commas separate the items in the list, and the sentence ends with a full stop.','Ben 和 Mia 是人名，要大写；逗号隔开列举的事物；句末用句号。')},
+   {id:54,lvl:3,tags:['cap','apos','stop'],type:'pick',art:'🎈',
+    en:'Which is the correct way to write this sentence?',zh:'这个句子应该怎么写才正确？',
+    show:'are you coming to mayas party on saturday',
+    opts:[O('Are you coming to Maya’s party on Saturday?'),
+          O('Are you coming to Mayas party on Saturday?',X('We need an apostrophe to show that the party belongs to Maya.','需要用撇号表示这个派对是 Maya 的。')),
+          O('Are you coming to Maya’s party on saturday?',X('Days of the week always start with a capital letter.','星期几总是以大写字母开头。')),
+          O('Are you coming to Maya’s party on Saturday.',X('This sentence asks something, so it needs a question mark.','这是问句，所以要用问号。'))],
+    ans:0,full:'Are you coming to Maya’s party on Saturday?',
+    hint:X('Check the name, the apostrophe, the day and the end mark.','检查名字、撇号、星期和句末标点。'),
+    why:X('Maya’s shows who the party belongs to, Saturday is a day so it has a capital letter, and the question ends with a question mark.','Maya’s 表示派对属于 Maya；Saturday 是星期，要大写；问句句末用问号。')},
+   {id:55,lvl:3,tags:['cap'],type:'tap',art:'🧑‍🏫',
+    en:'Tap all 4 words that need a capital letter. Then press Check.',zh:'点出所有需要大写的 4 个词，然后按“检查答案”。',
+    words:['i','think','mr','brown','is','from','china.'],need:[0,2,3,6],
+    full:'I think Mr Brown is from China.',
+    hint:X('Think about: the word I, a title, a name and a country.','想一想：单词 I、称呼、人名和国家名。'),
+    why:X('I is always a capital letter. Mr is a title, Brown is a name and China is a country, so each needs a capital letter.','I 永远要大写；Mr 是称呼，Brown 是人名，China 是国家名，都要大写。')},
+   {id:56,lvl:3,tags:['cap'],type:'tap',art:'🤝',
+    en:'Tap all 3 words that need a capital letter. Then press Check.',zh:'点出所有需要大写的 3 个词，然后按“检查答案”。',
+    words:['can','you','help','anna','and','tom?'],need:[0,3,5],
+    full:'Can you help Anna and Tom?',
+    hint:X('Think about: the first word and two names.','想一想：第一个词和两个人名。'),
+    why:X('Can starts the sentence. Anna and Tom are names of people, so they need capital letters.','Can 是第一个词；Anna 和 Tom 是人名，所以都要大写。')},
+   {id:57,lvl:3,tags:['cap','comma','stop'],type:'pick',art:'🐄',
+    en:'Which sentence has no mistakes?',zh:'哪一个句子没有错误？',
+    opts:[O('we saw cows, sheep and pigs on the farm.',X('A sentence starts with a capital letter.','句子以大写字母开头。')),
+          O('We saw cows sheep and pigs on the farm.',X('The things in the list need commas between them.','列举的事物之间需要用逗号隔开。')),
+          O('We saw cows, sheep and pigs on the farm.'),
+          O('We saw Cows, Sheep and Pigs on the farm.',X('Cows, sheep and pigs are kinds of animals, not names, so they stay small.','cows、sheep 和 pigs 只是动物的种类，不是名字，所以用小写。'))],
+    ans:2,full:'We saw cows, sheep and pigs on the farm.',
+    hint:X('Check the first word, the commas and the animal words.','检查第一个词、逗号和表示动物的词。'),
+    why:X('We starts the sentence. Commas separate the animals in the list. The animal words stay small because they are not names.','We 是第一个词；逗号隔开列举的动物；动物的词不是名字，所以用小写。')},
+   {id:58,lvl:3,tags:['cap','apos','stop'],type:'pick',art:'🎒',
+    en:'Which sentence is perfect?',zh:'哪一个句子完全正确？',
+    opts:[O('Why isn’t Sam at school today?'),
+          O('Why isnt Sam at school today?',X('Isn’t needs an apostrophe for the missing o.','isn’t 需要用撇号代替漏掉的字母 o。')),
+          O('Why isn’t sam at school today?',X('Sam is a name, so it needs a capital S.','Sam 是人名，所以 S 要大写。')),
+          O('why isn’t Sam at school today?',X('A sentence starts with a capital letter.','句子以大写字母开头。'))],
+    ans:0,full:'Why isn’t Sam at school today?',
+    hint:X('Check the first word, the short form, the name and the end mark.','检查第一个词、缩写、名字和句末标点。'),
+    why:X('Why starts the sentence, isn’t has an apostrophe for the missing o, Sam is a name, and the question ends with a question mark.','Why 是第一个词；isn’t 的撇号代替漏掉的 o；Sam 是人名；问句句末用问号。')},
+   {id:59,lvl:3,tags:['cap','apos','stop'],type:'pick',art:'🌤️',
+    en:'Which is the correct way to write this?',zh:'这个应该怎么写才正确？',
+    show:'its a fine day lets play outside',
+    opts:[O('It’s a fine day. Let’s play outside.'),
+          O('Its a fine day. Let’s play outside.',X('It’s is short for it is, so it needs an apostrophe.','It’s 是 it is 的缩写，需要撇号。')),
+          O('It’s a fine day, Let’s play outside.',X('A comma cannot join two sentences. End the first with a full stop and start the next with a capital letter.','逗号不能连接两个句子。第一句用句号结束，下一句以大写字母开头。')),
+          O('It’s a fine day. Lets play outside.',X('Let’s is short for let us, so it needs an apostrophe.','Let’s 是 let us 的缩写，需要撇号。'))],
+    ans:0,full:'It’s a fine day. Let’s play outside.',
+    hint:X('There are two sentences. Check each capital letter, each apostrophe and the full stops.','这里有两个句子。检查每个大写字母、每个撇号和句号。'),
+    why:X('There are two sentences. Each starts with a capital letter, It’s and Let’s each have an apostrophe, and each ends with a full stop.','这里有两个句子，各自以大写字母开头；It’s 和 Let’s 都有撇号；每句都以句号结尾。')}
+  ];
+/* ---------- background music: ducks under the voice, adjustable volume, plus short sound effects ---------- */
+var Music=(function(){
+  var ctx=null,master=null,sfxBus=null,timer=null,on=false,lvl=1,muted=false,step=0,nextT=0,media=[];
+  var MAXG=.3, vol=.55, lively=false, EIGHTH=60/84/2;
+  var MEL=[0,2,4,2,3,1,2,0,4,5,4,2,3,2,1,0], SCALE=[261.63,293.66,329.63,392,440,523.25];
+  var CH=[[130.81,196,261.63],[110,164.81,220],[87.31,130.81,174.61],[98,146.83,196]];
+  function available(){return !!(window.AudioContext||window.webkitAudioContext);}
+  function ensure(){
+    if(ctx)return true;
+    var AC=window.AudioContext||window.webkitAudioContext;
+    if(!AC)return false;
+    try{
+      ctx=new AC();master=ctx.createGain();master.gain.value=0;
+      var lp=ctx.createBiquadFilter();lp.type='lowpass';lp.frequency.value=1800;
+      master.connect(lp);lp.connect(ctx.destination);
+      sfxBus=ctx.createGain();sfxBus.gain.value=.45;sfxBus.connect(ctx.destination);
+    }catch(e){ctx=null;return false;}
+    return true;
+  }
+  function apply(){
+    if(ctx&&master){try{master.gain.setTargetAtTime(on&&!muted?MAXG*vol*lvl:0,ctx.currentTime,.18);}catch(e){}}
+    media.forEach(function(m){try{m.el.volume=Math.max(0,Math.min(1,m.vol*lvl*(muted?0:1)));}catch(e){}});
+  }
+  function note(f,t,dur,type,v){
+    var o=ctx.createOscillator(),g=ctx.createGain();
+    o.type=type;o.frequency.value=f;
+    g.gain.setValueAtTime(0.0001,t);g.gain.linearRampToValueAtTime(v,t+.03);g.gain.exponentialRampToValueAtTime(0.0001,t+dur);
+    o.connect(g);g.connect(master);o.start(t);o.stop(t+dur+.05);
+  }
+  function tick(){
+    if(!ctx)return;
+    while(nextT<ctx.currentTime+1.2){
+      note(SCALE[MEL[step%16]],nextT,.9,'triangle',.5);
+      var ci=((step/8)|0)%4;
+      if(step%8===0)CH[ci].forEach(function(f){note(f,nextT,EIGHTH*8,'sine',.28);});
+      if(lively&&step%2===1)note(CH[ci][1]*2,nextT,.16,'square',.07);
+      nextT+=EIGHTH;step++;
+    }
+  }
+  function start(){
+    if(!ensure())return false;
+    try{ctx.resume();}catch(e){}
+    on=true;
+    if(!timer){nextT=ctx.currentTime+.1;tick();timer=setInterval(tick,300);}
+    apply();return true;
+  }
+  function stop(){
+    on=false;apply();
+    if(timer){var t=timer;timer=null;setTimeout(function(){clearInterval(t);},800);}
+  }
+  /* short, gentle effects. They are silent when the pupil has muted the sound. */
+  function sfx(kind){
+    if(muted||!ensure())return;
+    try{ctx.resume();}catch(e){}
+    var t0=ctx.currentTime+.02;
+    function n(f,at,d,type,v){
+      var o=ctx.createOscillator(),g=ctx.createGain();
+      o.type=type;o.frequency.value=f;
+      g.gain.setValueAtTime(0.0001,t0+at);g.gain.linearRampToValueAtTime(v,t0+at+.015);g.gain.exponentialRampToValueAtTime(0.0001,t0+at+d);
+      o.connect(g);g.connect(sfxBus);o.start(t0+at);o.stop(t0+at+d+.05);
+    }
+    if(kind==='good'){[523.25,659.25,783.99,1046.5].forEach(function(f,i){n(f,i*.09,.35,'triangle',.5);});n(1318.5,.38,.55,'sine',.35);}
+    else if(kind==='oops'){n(392,0,.24,'sine',.4);n(329.63,.18,.36,'sine',.4);}
+    else if(kind==='tap'){n(660,0,.09,'triangle',.3);}
+    else if(kind==='done'){[523.25,659.25,783.99,1046.5,783.99,1046.5,1318.5].forEach(function(f,i){n(f,i*.12,.42,'triangle',.5);});}
+  }
+  return {
+    available:available,start:start,stop:stop,sfx:sfx,
+    isOn:function(){return on;},
+    duck:function(d){lvl=d?.2:1;apply();},
+    setMuted:function(m){muted=m;apply();},
+    setVolume:function(v){vol=Math.max(0,Math.min(1,+v||0));apply();},
+    getVolume:function(){return vol;},
+    setLively:function(b){lively=!!b;EIGHTH=60/(b?108:84)/2;},
+    suspend:function(){if(ctx){try{ctx.suspend();}catch(e){}}},
+    resume:function(){if(on&&ctx){try{ctx.resume();}catch(e){}}},
+    registerMedia:function(el){if(el){media.push({el:el,vol:el.volume});apply();}}
+  };
+})();
+
+
+
+var $=function(id){return document.getElementById(id);};
+var esc=function(s){return String(s).replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;').replace(/>/g,'&gt;');};
+var bi=function(en,zh){return '<span class="en">'+en+'</span><span class="zh">'+zh+'</span>';};
+var clamp=function(v,a,b){return Math.max(a,Math.min(b,v));};
+var REDUCE=false;try{REDUCE=window.matchMedia('(prefers-reduced-motion: reduce)').matches;}catch(e){}
+
+/* ---------- constants ---------- */
+var W=1800,H=1200,MINTARGET=120,PER_PUPIL=80,BEES=12,LESSON_PTS=2,UNLOCK=3,PTS=[10,6,3];
+var CH=[{e:'🐱',c:'#ff9f43'},{e:'🐶',c:'#c58a5a'},{e:'🐰',c:'#ff8fb1'},{e:'🐼',c:'#7a8a96'},{e:'🦊',c:'#f2682a'},{e:'🐸',c:'#43b86a'},{e:'🦉',c:'#9b7be0'},{e:'🦁',c:'#e0a526'},{e:'🧑‍🏫',c:'#2f6bff'}];
+var SK=[{k:'cap',sym:'A',en:'Capital letters',zh:'大写字母',tip:'Check the first word, names, days, countries and the word I.',tz:'检查第一个词、人名、星期、国家名和单词 I。'},
+        {k:'stop',sym:'.',en:'End marks',zh:'句末标点',tip:'Ask: does the sentence tell, ask or shout?',tz:'想一想：这句话是陈述、提问还是感叹？'},
+        {k:'comma',sym:',',en:'Commas',zh:'逗号',tip:'Use commas in lists and after a name you speak to.',tz:'列举事物和称呼某人时用逗号。'},
+        {k:'apos',sym:'’',en:'Apostrophes',zh:'撇号',tip:'Use them for short forms (don’t) and for belonging (Sam’s).',tz:'用于缩写（don’t）和所属（Sam’s）。'}];
+
+/* ---------- state ---------- */
+var L='both';
+var P={name:'',ch:0,code:''};            // chosen in the lobby
+var S={learned:{},solved:{},pts:0,att:{},hit:{},first:0,sd:1,k:''};  // my saved progress
+var isT=false,canTeach=false,act='w',goalPer=80,U=null;
+var playing=false,won=false,room=null,roomName='',connected=false;
+var remotes={},seen={};                   // other players, and the best points seen for each player id
+var me={x:900,y:650,tx:null,ty:null,moving:false,dir:1,stuck:0,want:null,emo:'',emoUntil:0};
+var modalOpen=false,near=null,keys={};
+
+function cleanCode(v){return String(v||'').toLowerCase().replace(/[^a-z0-9]/g,'').slice(0,12);}
+function save(){try{if(!isT)localStorage.setItem('bz-save2',JSON.stringify({S:S,P:P,L:L}));}catch(e){}}
+(function load(){
+  try{
+    var o=JSON.parse(localStorage.getItem('bz-save2')||'null');
+    if(o){
+      if(o.S){['learned','solved','att','hit'].forEach(function(k){if(o.S[k]&&typeof o.S[k]==='object')S[k]=o.S[k];});
+        S.pts=+o.S.pts||0;S.first=+o.S.first||0;S.sd=+o.S.sd||1;S.k=String(o.S.k||'').slice(0,20);}
+      if(o.P){P.name=String(o.P.name||'').slice(0,14);P.ch=clamp(+o.P.ch||0,0,7);P.code=cleanCode(o.P.code);}
+      if(o.L==='en'||o.L==='zh'||o.L==='both')L=o.L;
+    }
+  }catch(e){}
+  if(!S.k){S.k=Math.random().toString(36).slice(2,12);S.sd=1+Math.floor(Math.random()*1e6);}
+})();
+
+/* ---------- seeded garden layout (same for every pupil) ---------- */
+function mulberry(a){return function(){a|=0;a=a+0x6D2B79F5|0;var t=Math.imul(a^a>>>15,1|a);t=t+Math.imul(t^t>>>7,61|t)^t;return((t^t>>>14)>>>0)/4294967296;};}
+var SPAWN={x:900,y:650};
+var TREES=[[210,210],[430,150],[860,130],[1240,270],[1520,540],[1640,900],[1390,1040],[960,1070],[250,650],[150,990],[690,470],[1150,720],[1010,390],[330,380],[1480,330],[780,980]];
+var POND={x:560,y:870,rx:170,ry:100};
+var HIVE={x:1610,y:200,r:70};
+var ITEMS_AT=[],CLUES=[],STONES=[],DECOR=[];
+(function layout(){
+  var rng=mulberry(20240613),pts=[],md=150,tries=0;
+  function free(x,y){
+    if(x<120||y<120||x>W-120||y>H-120)return false;
+    if(Math.hypot(x-SPAWN.x,y-SPAWN.y)<130)return false;
+    for(var i=0;i<TREES.length;i++)if(Math.hypot(x-TREES[i][0],y-TREES[i][1])<85)return false;
+    var dx=(x-POND.x)/(POND.rx+55),dy=(y-POND.y)/(POND.ry+55);if(dx*dx+dy*dy<1)return false;
+    if(Math.hypot(x-HIVE.x,y-HIVE.y)<170)return false;
+    for(var j=0;j<pts.length;j++)if(Math.hypot(x-pts[j][0],y-pts[j][1])<md)return false;
+    return true;
+  }
+  while(pts.length<32&&tries<20000){
+    tries++;
+    if(tries%3000===0)md-=15;
+    var x=120+rng()*(W-240),y=120+rng()*(H-240);
+    if(free(x,y))pts.push([Math.round(x),Math.round(y)]);
+  }
+  var cl=pts.slice(0,22),st=pts.slice(22,32);
+  var order=[];for(var i=0;i<22;i++)order.push(i);
+  for(i=21;i>0;i--){var j=Math.floor(rng()*(i+1)),t=order[i];order[i]=order[j];order[j]=t;}
+  cl.forEach(function(p,n){CLUES.push({kind:'clue',id:order[n],x:p[0],y:p[1]});});
+  st.forEach(function(p,n){STONES.push({kind:'stone',n:n,x:p[0],y:p[1],q:-1,cool:0});});
+  for(i=0;i<150;i++){var dx2=70+rng()*(W-140),dy2=70+rng()*(H-140);DECOR.push({x:dx2,y:dy2,c:Math.floor(rng()*5),s:4+rng()*4});}
+})();
+/* every pupil gets the questions in a fresh order, easy first, harder later. A solved honey pot grows back with the next question. */
+var SEQ=[];
+(function(){
+  var rng=mulberry(S.sd||1),tiers=[[],[],[]];
+  PQ.forEach(function(q,i){tiers[q.lvl-1].push(i);});
+  tiers.forEach(function(t){for(var i=t.length-1;i>0;i--){var j=Math.floor(rng()*(i+1)),x=t[i];t[i]=t[j];t[j]=x;}SEQ=SEQ.concat(t);});
+})();
+function nextQ(){
+  for(var n=0;n<SEQ.length;n++){
+    var i=SEQ[n];
+    if(S.solved[PQ[i].id])continue;
+    if(STONES.some(function(s){return s.q===i;}))continue;
+    return i;
+  }
+  return -1;
+}
+function assignStones(){
+  STONES.forEach(function(s){s.q=-1;s.cool=0;});
+  var by=STONES.slice().sort(function(a,b){return Math.hypot(a.x-SPAWN.x,a.y-SPAWN.y)-Math.hypot(b.x-SPAWN.x,b.y-SPAWN.y);});
+  by.forEach(function(s){s.q=nextQ();});
+}
+assignStones();
+var ITEMS_ALL=CLUES.concat(STONES);
+
+/* ---------- read-aloud: friendly British English, Mandarin for the Chinese ---------- */
+var TTS=(function(){
+  var ok='speechSynthesis' in window&&typeof SpeechSynthesisUtterance!=='undefined';
+  var on=true,vEn=null,vZh=null,gen=0,speaking=false;
+  function sc(v,lang){
+    var l=(v.lang||'').replace('_','-').toLowerCase(),n=(v.name||'').toLowerCase(),s=0;
+    if(lang==='en'){if(l==='en-gb')s+=10;else if(l==='en-au'||l==='en-ie')s+=3;else if(l.indexOf('en')===0)s+=2;else return -99;}
+    else{if(l==='zh-cn'||l==='cmn-cn')s+=10;else if(l.indexOf('zh')===0)s+=5;else return -99;}
+    if(/natural|neural|online|premium|enhanced/.test(n))s+=6;
+    if(/google uk english female|libby|sonia|serena|hazel|kate|susan|martha|female|xiaoxiao|xiaoyi|tingting|ting-ting|huihui/.test(n))s+=3;
+    if(/espeak|compact|novelty/.test(n))s-=8;
+    return s;
+  }
+  function pickV(){
+    if(!ok)return;
+    var vs=[];try{vs=speechSynthesis.getVoices()||[];}catch(e){}
+    var be=-9,bz=-9;vEn=null;vZh=null;
+    vs.forEach(function(v){var a=sc(v,'en'),z=sc(v,'zh');if(a>be&&a>0){be=a;vEn=v;}if(z>bz&&z>0){bz=z;vZh=v;}});
+  }
+  if(ok){pickV();try{speechSynthesis.addEventListener('voiceschanged',pickV);}catch(e){}}
+  function cancel(){gen++;speaking=false;if(ok){try{speechSynthesis.cancel();}catch(e){}}Music.duck(false);}
+  function say(en,zh,force,any){
+    if(!ok||(!on&&!force))return;
+    var parts=[];
+    if((any||L!=='zh')&&en)parts.push({t:en,l:'en'});
+    if((any||L!=='en')&&zh)parts.push({t:zh,l:'zh'});
+    if(!parts.length)return;
+    cancel();
+    var g=++gen,i=0;speaking=true;Music.duck(true);
+    function done(){if(g!==gen)return;speaking=false;Music.duck(false);}
+    function next(){
+      if(g!==gen)return;
+      if(i>=parts.length){done();return;}
+      var p=parts[i++],u=new SpeechSynthesisUtterance(p.t),fin=false;
+      u.lang=p.l==='en'?'en-GB':'zh-CN';
+      var v=p.l==='en'?vEn:vZh;if(v)u.voice=v;
+      u.rate=p.l==='en'?.88:.85;u.pitch=1.06;u.volume=1;
+      function go(){if(fin)return;fin=true;setTimeout(next,p.l==='en'?280:0);}
+      u.onend=go;u.onerror=go;
+      setTimeout(go,Math.max(3500,p.t.length*130*2));
+      try{speechSynthesis.speak(u);}catch(e){go();}
+    }
+    next();
+  }
+  return {ok:ok,say:say,cancel:cancel,get on(){return on;},set on(v){on=!!v;if(!on)cancel();}};
+})();
+function plain(h){return String(h).replace(/<[^>]*>/g,'').replace(/&amp;/g,'&').replace(/&quot;/g,'"').replace(/&lt;/g,'<').replace(/&gt;/g,'>');}
+
+/* ---------- small helpers ---------- */
+function toast(en,zh,ms){
+  var t=$('toast');t.className='';t.innerHTML='<div class="bi">'+bi(en,zh)+'</div>';
+  void t.offsetWidth;t.className='on';clearTimeout(toast.t);toast.t=setTimeout(function(){t.className='';},ms||2600);
+}
+var fx=[],fxc=$('fxc'),fxx=fxc.getContext('2d');
+function burst(sx,sy,n,kind){
+  if(REDUCE)n=Math.min(n,10);
+  var cols=['#ff7aa8','#ffc83d','#5ec2ff','#7be08a','#b28bff','#ff9f43'],ems=['⭐','🎉','🌸','🍯','✨'];
+  for(var i=0;i<n;i++){
+    var a=Math.random()*Math.PI*2,sp=140+Math.random()*340;
+    fx.push({x:sx,y:sy,vx:Math.cos(a)*sp,vy:Math.sin(a)*sp-260,r:5+Math.random()*5,rot:Math.random()*6,vr:(Math.random()-.5)*10,col:cols[i%cols.length],em:kind==='star'||Math.random()<.22?ems[i%ems.length]:null,life:1.7+Math.random()*.8});
+  }
+}
+function celebrate(n){burst(innerWidth/2,innerHeight*.35,n||70);}
+function stepFx(dt){
+  var dpr=Math.min(devicePixelRatio||1,2);
+  fxx.setTransform(dpr,0,0,dpr,0,0);fxx.clearRect(0,0,innerWidth,innerHeight);
+  for(var i=fx.length-1;i>=0;i--){
+    var p=fx[i];p.life-=dt;if(p.life<=0){fx.splice(i,1);continue;}
+    p.vy+=620*dt;p.x+=p.vx*dt;p.y+=p.vy*dt;p.rot+=p.vr*dt;
+    fxx.save();fxx.translate(p.x,p.y);fxx.rotate(p.rot);fxx.globalAlpha=Math.min(1,p.life);
+    if(p.em){fxx.font='22px "Apple Color Emoji","Segoe UI Emoji","Noto Color Emoji",sans-serif';fxx.textAlign='center';fxx.textBaseline='middle';fxx.fillText(p.em,0,0);}
+    else{fxx.fillStyle=p.col;fxx.fillRect(-p.r,-p.r/2,p.r*2,p.r);}
+    fxx.restore();
+  }
+}
+
+/* ---------- team points and bees ---------- */
+function myPts(){return S.pts;}
+function teamTotal(){if(!isT)seen[S.k]=S.pts;var t=0;for(var k in seen)t+=seen[k];return t;}
+var bestProg=0;
+function target(){var n=0;for(var k in seen)n++;return Math.max(MINTARGET,goalPer*n);}
+function progress(){var p=clamp(teamTotal()/target(),0,1);if(p>bestProg)bestProg=p;return bestProg;}
+function beesLeft(){return Math.ceil(BEES*(1-progress())-1e-9);}
+function addPts(n){
+  if(n<=0||isT)return;
+  S.pts+=n;save();pushPresence(true);updateHud();
+}
+function updateHud(){
+  var p=progress(),b=beesLeft();
+  $('beetxt').innerHTML=b>0?'🐝 × '+b+' <span style="font-size:.85rem;font-weight:600" class="bi inl">'+bi('bees left','只蜜蜂')+'</span>':'🍯 <span class="bi inl">'+bi('Bees are home!','蜜蜂回家啦！')+'</span>';
+  $('beebar').style.width=Math.round(p*100)+'%';
+  $('ptstxt').innerHTML='<span class="bi inl">'+bi('Team','团队')+'</span> '+Math.min(teamTotal(),9999)+' / '+target()+' · ⭐ '+S.pts;
+  var n=isT?0:1;for(var k in remotes)if(!remotes[k].t)n++;
+  $('peercount').textContent=n;
+  renderRoster();
+  if(!won&&playing&&p>=1){won=true;try{localStorage.setItem('bz-won',String(Date.now()));}catch(e){}celebrate(120);Music.sfx('done');TTS.say('Hooray! The bees have flown home. The garden is saved!','太棒了！蜜蜂都飞回家了，花园得救了！');setTimeout(function(){openReport(true);},1400);}
+}
+function learnedCount(){return Object.keys(S.learned).length;}
+function solvedCount(){return Object.keys(S.solved).length;}
+
+/* ---------- multiplayer (presence only, nothing is stored) ---------- */
+var lastSent=0,sentKey='';
+function cleanName(s){return String(s||'').replace(/[\u0000-\u001f<>&"]/g,'').trim().slice(0,14)||'Friend';}
+function presGap(){var n=0;for(var k in remotes)n++;return n<=8?110:Math.min(450,110+(n-8)*14);}
+function pushPresence(force){
+  if(!room||!playing)return;
+  var now=performance.now();
+  var o={n:P.name,c:isT?8:P.ch,t:isT?1:0,a:act,x:Math.round(me.x),y:Math.round(me.y),p:S.pts,l:learnedCount(),s:solvedCount(),k:S.k,e:me.emo||null,et:me.emoAt||0};
+  var key=JSON.stringify(o);
+  if(!force&&(key===sentKey||now-lastSent<presGap()))return;
+  sentKey=key;lastSent=now;
+  try{room.presence(o).catch(function(){});}catch(e){}
+}
+function onPeers(ch){
+  var live={};
+  (ch.peers||[]).forEach(function(pr){
+    if(pr.isMe)return;
+    var d=pr.presence||{};
+    if(typeof d.x!=='number'||typeof d.y!=='number')return;
+    var r=remotes[pr.peer];
+    if(!r){r=remotes[pr.peer]={x:clamp(d.x,0,W),y:clamp(d.y,0,H),dir:1,mv:0,emoUntil:0,et:0};}
+    r.tx=clamp(d.x,0,W);r.ty=clamp(d.y,0,H);
+    var np=clamp(Math.floor(+d.p||0),0,9999),nl=clamp(Math.floor(+d.l||0),0,22),ns=clamp(Math.floor(+d.s||0),0,99),na=String(d.a||'w').slice(0,1),nowm=Date.now();
+    if(r.prog===undefined||np!==r.p||nl!==r.l||ns!==r.s)r.prog=nowm;
+    if(r.chg===undefined||Math.abs(r.tx-(r.px===undefined?-9:r.px))>2||Math.abs(r.ty-(r.py===undefined?-9:r.py))>2||na!==r.a||np!==r.p)r.chg=nowm;
+    r.px=r.tx;r.py=r.ty;r.a=na;r.t=d.t===1?1:0;
+    r.n=cleanName(d.n);r.c=clamp(Math.floor(+d.c||0),0,CH.length-1);r.p=np;
+    r.l=nl;r.s=ns;
+    var k=String(d.k||pr.peer).slice(0,20);
+    if(!r.t&&(!(k in seen)||r.p>seen[k]))seen[k]=r.p;
+    if(d.e&&d.et!==r.et){r.et=d.et;r.emo=String(d.e).slice(0,4);r.emoUntil=performance.now()+3500;}
+    live[pr.peer]=1;
+  });
+  for(var id in remotes)if(!live[id])delete remotes[id];
+  if(isT&&ch.joined&&ch.joined.length)sendGoal();
+  updateHud();renderMon();
+}
+async function connectRoom(){
+  try{
+    var c=(window.claude&&window.claude.use)?await window.claude.use('room'):null;
+    if(!c)return;
+    var r=null;
+    var code=cleanCode(P.code);
+    if(code){
+      try{r=await c.join('bz-'+code);roomName=code;}
+      catch(e){r=null;roomName='';toast('Could not open team room “'+esc(code)+'”. You are playing on your own.','无法进入小组“'+esc(code)+'”，你现在是单人游戏。',5000);}
+    }
+    if(!r)return;
+    if(isT&&r.isAdmin===false){isT=false;act='w';$('b-class').hidden=true;$('mon').hidden=true;toast('Wrong teacher PIN. You joined as a pupil.','教师密码不对，你以学生身份加入。',7000);}
+    room=r;
+    try{room.onConnection(function(ok){connected=ok;updateHud();});}catch(e){}
+    room.onPeers(onPeers,function(){room=null;});
+    try{room.on('say',function(m){var t=m&&m.data&&m.data.t;if(typeof t!=='string')return;t=t.replace(/[\u0000-\u001f<>]/g,'').slice(0,140);if(t)announce(t);});}catch(e){}
+    try{room.on('goal',function(m){var g=m&&m.data&&+m.data.per;if(g>=20&&g<=300){goalPer=g;updateHud();}});}catch(e){}
+    if(isT){setInterval(sendGoal,8000);sendGoal();}
+    pushPresence(true);
+  }catch(e){room=null;}
+}
+
+function sendGoal(){if(room&&isT){try{room.emit('goal',{per:goalPer}).catch(function(){});}catch(e){}}}
+function hasCJK(t){return /[\u3400-\u9fff]/.test(t);}
+function announce(t){
+  toast('📢 '+esc(t),'',7000);
+  if(hasCJK(t))TTS.say('',t,false,true);else TTS.say(t,'',false,true);
+}
+
+/* ---------- world drawing ---------- */
+var cv=$('cv'),ctx=cv.getContext('2d'),mini=$('mini'),mx=mini.getContext('2d');
+var vw=0,vh=0,dpr=1,scale=1,cam={x:0,y:0};
+function resize(){
+  dpr=Math.min(devicePixelRatio||1,2);vw=innerWidth;vh=innerHeight;
+  cv.width=Math.round(vw*dpr);cv.height=Math.round(vh*dpr);
+  fxc.width=Math.round(vw*dpr);fxc.height=Math.round(vh*dpr);
+  scale=clamp(Math.min(vw/900,vh/620),.62,1.3);
+}
+addEventListener('resize',resize);resize();
+
+var bg=document.createElement('canvas');bg.width=W;bg.height=H;
+(function paintBg(){
+  var g=bg.getContext('2d'),r=mulberry(99),i;
+  g.fillStyle='#8fd35a';g.fillRect(0,0,W,H);
+  for(i=0;i<H/60;i++){if(i%2){g.fillStyle='rgba(255,255,255,.06)';g.fillRect(0,i*60,W,60);}}
+  /* paths */
+  g.lineCap='round';g.strokeStyle='#e7cf98';g.lineWidth=74;
+  g.beginPath();g.moveTo(80,640);g.bezierCurveTo(500,560,700,740,1000,640);g.bezierCurveTo(1300,540,1500,330,1610,250);g.stroke();
+  g.beginPath();g.moveTo(900,90);g.bezierCurveTo(850,400,980,880,880,1110);g.stroke();
+  g.strokeStyle='#d9bd7e';g.lineWidth=4;g.setLineDash([2,16]);
+  g.beginPath();g.moveTo(80,640);g.bezierCurveTo(500,560,700,740,1000,640);g.bezierCurveTo(1300,540,1500,330,1610,250);g.stroke();g.setLineDash([]);
+  /* grass tufts */
+  for(i=0;i<420;i++){var x=r()*W,y=r()*H;g.strokeStyle=r()<.5?'#6fbb3f':'#a4e06e';g.lineWidth=2;g.beginPath();g.moveTo(x,y);g.lineTo(x-3,y-8);g.moveTo(x,y);g.lineTo(x+4,y-9);g.stroke();}
+  /* pond */
+  g.fillStyle='#6fb8d8';g.beginPath();g.ellipse(POND.x,POND.y,POND.rx+12,POND.ry+12,0,0,7);g.fill();
+  g.fillStyle='#8fd3ee';g.beginPath();g.ellipse(POND.x,POND.y,POND.rx,POND.ry,0,0,7);g.fill();
+  g.strokeStyle='rgba(255,255,255,.7)';g.lineWidth=4;
+  for(i=0;i<4;i++){g.beginPath();g.ellipse(POND.x-50+i*35,POND.y-20+i*14,34,8,0,0,Math.PI);g.stroke();}
+  g.fillStyle='#4fa24a';[[-60,10],[40,-30],[90,30]].forEach(function(p){g.beginPath();g.ellipse(POND.x+p[0],POND.y+p[1],22,12,0,0,7);g.fill();});
+  /* flower beds */
+  [[360,470],[1330,860],[1150,170],[220,820]].forEach(function(b){
+    g.fillStyle='#7a5a3a';g.beginPath();g.ellipse(b[0],b[1],90,46,0,0,7);g.fill();
+    for(var k=0;k<9;k++){var a=r()*6.28,rr=r()*60;g.fillStyle=['#ff7aa8','#fff','#ffc83d','#b28bff'][k%4];g.beginPath();g.arc(b[0]+Math.cos(a)*rr,b[1]+Math.sin(a)*rr*.5,6,0,7);g.fill();}
+  });
+  /* fence */
+  var fy=[[40,40,W-40,40],[40,H-40,W-40,H-40],[40,40,40,H-40],[W-40,40,W-40,H-40]];
+  g.strokeStyle='#b07a43';g.lineWidth=10;g.lineCap='butt';
+  g.strokeRect(40,40,W-80,H-80);
+  g.strokeStyle='#c99358';g.lineWidth=4;g.strokeRect(40,40,W-80,H-80);
+  g.fillStyle='#b07a43';
+  for(i=40;i<=W-40;i+=40){g.fillRect(i-6,28,12,26);g.fillRect(i-6,H-54,12,26);}
+  for(i=40;i<=H-40;i+=40){g.fillRect(28,i-6,26,12);g.fillRect(W-54,i-6,26,12);}
+})();
+
+var FFc='';function ff(){return FFc||(FFc=getComputedStyle(document.body).fontFamily);}
+var DEC=['#ff7aa8','#ffffff','#ffc83d','#b28bff','#ff9f43'];
+function drawTree(t){
+  var x=t[0],y=t[1];
+  ctx.fillStyle='rgba(0,0,0,.16)';ctx.beginPath();ctx.ellipse(x,y+4,46,14,0,0,7);ctx.fill();
+  ctx.fillStyle='#8a5a2b';ctx.fillRect(x-9,y-52,18,56);
+  ctx.fillStyle='#3d9a3b';ctx.beginPath();ctx.arc(x,y-92,52,0,7);ctx.fill();
+  ctx.fillStyle='#4fb44a';ctx.beginPath();ctx.arc(x-18,y-102,34,0,7);ctx.fill();
+  ctx.fillStyle='#2f8a33';ctx.beginPath();ctx.arc(x+26,y-78,28,0,7);ctx.fill();
+}
+function drawHive(t){
+  var x=HIVE.x,y=HIVE.y+50;
+  ctx.fillStyle='rgba(0,0,0,.18)';ctx.beginPath();ctx.ellipse(x,y+12,86,22,0,0,7);ctx.fill();
+  for(var i=0;i<5;i++){
+    var w=82-i*14,yy=y-i*26;
+    ctx.fillStyle=i%2?'#f2b632':'#ffcf4d';ctx.strokeStyle='#8a5a00';ctx.lineWidth=4;
+    ctx.beginPath();ctx.ellipse(x,yy,w,20,0,0,7);ctx.fill();ctx.stroke();
+  }
+  ctx.fillStyle='#4b2f08';ctx.beginPath();ctx.ellipse(x,y-6,20,16,0,0,7);ctx.fill();
+  ctx.fillStyle='#23331c';ctx.font='800 16px '+ff();ctx.textAlign='center';ctx.textBaseline='middle';
+  ctx.fillText('Bee hive',x,y+38);
+}
+function drawClue(c,t,isNear){
+  var done=!!S.learned[c.id],bob=Math.sin(t*2.2+c.id)*2.5,x=c.x,y=c.y;
+  ctx.fillStyle='rgba(0,0,0,.15)';ctx.beginPath();ctx.ellipse(x,y+3,20,7,0,0,7);ctx.fill();
+  ctx.strokeStyle='#3f8f33';ctx.lineWidth=5;ctx.beginPath();ctx.moveTo(x,y);ctx.lineTo(x,y-26+bob);ctx.stroke();
+  ctx.fillStyle='#4aa83b';ctx.beginPath();ctx.ellipse(x+9,y-10,9,4,-.5,0,7);ctx.fill();
+  var cy=y-38+bob,col=done?'#ffd84d':['#ff7aa8','#ff9f43','#b28bff','#5ec2ff','#7be08a'][c.id%5];
+  for(var i=0;i<7;i++){var a=i/7*6.283+t*.15;ctx.fillStyle=col;ctx.strokeStyle='#23331c';ctx.lineWidth=2;ctx.beginPath();ctx.arc(x+Math.cos(a)*16,cy+Math.sin(a)*16,10,0,7);ctx.fill();ctx.stroke();}
+  ctx.fillStyle='#fff';ctx.strokeStyle='#23331c';ctx.lineWidth=3;ctx.beginPath();ctx.arc(x,cy,14,0,7);ctx.fill();ctx.stroke();
+  ctx.fillStyle='#23331c';ctx.font='800 15px '+ff();ctx.textAlign='center';ctx.textBaseline='middle';
+  ctx.fillText(done?'✓':String(c.id+1),x,cy+1);
+  if(isNear&&!done){ctx.strokeStyle='#ffc83d';ctx.lineWidth=4;ctx.globalAlpha=.6+.4*Math.sin(t*6);ctx.beginPath();ctx.arc(x,cy,34,0,7);ctx.stroke();ctx.globalAlpha=1;}
+}
+function drawStone(s,t,isNear){
+  var done=s.q<0,locked=learnedCount()<UNLOCK;
+  ctx.fillStyle='rgba(0,0,0,.16)';ctx.beginPath();ctx.ellipse(s.x,s.y+4,30,10,0,0,7);ctx.fill();
+  ctx.fillStyle=done?'#cfe9c0':'#c9c3b4';ctx.strokeStyle='#23331c';ctx.lineWidth=3;ctx.beginPath();ctx.ellipse(s.x,s.y,28,12,0,0,7);ctx.fill();ctx.stroke();
+  ctx.font='36px "Apple Color Emoji","Segoe UI Emoji","Noto Color Emoji",sans-serif';ctx.textAlign='center';ctx.textBaseline='middle';
+  ctx.globalAlpha=locked&&!done?.55:1;ctx.fillText(done?'🌱':'🍯',s.x,s.y-(done?14:22)+Math.sin(t*2+s.n)*2);ctx.globalAlpha=1;
+  ctx.font='20px "Apple Color Emoji","Segoe UI Emoji","Noto Color Emoji",sans-serif';
+  if(done){}else if(locked)ctx.fillText('🔒',s.x+22,s.y-38);
+  else{ctx.fillStyle='#23331c';ctx.font='800 15px '+ff();ctx.fillText('?',s.x+22,s.y-38);}
+  if(isNear&&!done&&!locked){ctx.strokeStyle='#ffc83d';ctx.lineWidth=4;ctx.globalAlpha=.6+.4*Math.sin(t*6);ctx.beginPath();ctx.arc(s.x,s.y-22,34,0,7);ctx.stroke();ctx.globalAlpha=1;}
+}
+function drawPlayer(p,t,isMe){
+  var ch=CH[p.c],x=p.x,y=p.y,bob=p.mv?Math.abs(Math.sin(t*12))*5:Math.sin(t*2)*1.2;
+  ctx.fillStyle='rgba(0,0,0,.2)';ctx.beginPath();ctx.ellipse(x,y+2,18,7,0,0,7);ctx.fill();
+  ctx.fillStyle=ch.c;ctx.globalAlpha=.85;ctx.beginPath();ctx.ellipse(x,y+2,22,9,0,0,7);ctx.fill();ctx.globalAlpha=1;
+  ctx.save();ctx.translate(x,y-26-bob);ctx.scale(p.dir<0?-1:1,1);
+  ctx.font='42px "Apple Color Emoji","Segoe UI Emoji","Noto Color Emoji",sans-serif';ctx.textAlign='center';ctx.textBaseline='middle';ctx.fillText(ch.e,0,0);ctx.restore();
+}
+function drawTag(p,isMe,t,showName){
+  var x=p.x,y=p.y-62,f=ff();
+  ctx.font='800 14px '+f;ctx.textAlign='center';ctx.textBaseline='middle';
+  if(showName){
+  var lab=p.t?(/^teacher$/i.test(p.n)?'Teacher':p.n+' · Teacher'):p.n;
+  var w=ctx.measureText(lab).width+16;
+  ctx.fillStyle=p.t?'#2f6bff':isMe?'#ffc83d':'#fffaf0';ctx.strokeStyle='#23331c';ctx.lineWidth=2.5;
+  ctx.beginPath();ctx.roundRect?ctx.roundRect(x-w/2,y-11,w,22,11):ctx.rect(x-w/2,y-11,w,22);ctx.fill();ctx.stroke();
+  ctx.fillStyle=p.t?'#fff':'#23331c';ctx.fillText(lab,x,y+1);}
+  if(p.emo&&performance.now()<p.emoUntil){
+    ctx.font='34px "Apple Color Emoji","Segoe UI Emoji","Noto Color Emoji",sans-serif';
+    ctx.fillText(p.emo,x,y-30-Math.sin(t*5)*3);
+  }
+}
+
+/* bees: purely decorative, they leave as the team earns points */
+var bees=[];
+function initBees(){
+  bees=[];
+  for(var i=0;i<BEES;i++)bees.push({x:300+Math.random()*1200,y:200+Math.random()*800,tx:0,ty:0,ph:Math.random()*6,st:'buzz',a:1,dir:1});
+}
+function stepBees(dt,t){
+  var want=beesLeft(),alive=bees.filter(function(b){return b.st==='buzz';});
+  while(alive.length>want){var b=alive.pop();b.st='leave';}
+  bees.forEach(function(b){
+    if(b.st==='buzz'){
+      if(!b.tx||Math.hypot(b.tx-b.x,b.ty-b.y)<30){b.tx=160+Math.random()*(W-320);b.ty=160+Math.random()*(H-320);}
+      var a=Math.atan2(b.ty-b.y,b.tx-b.x),sp=70+Math.sin(t+b.ph)*20;
+      b.x+=Math.cos(a)*sp*dt+Math.sin(t*9+b.ph)*.8;b.y+=Math.sin(a)*sp*dt+Math.cos(t*7+b.ph)*.8;b.dir=Math.cos(a)>=0?1:-1;
+    }else{
+      var ax=HIVE.x-b.x,ay=HIVE.y+30-b.y,d=Math.hypot(ax,ay)||1;
+      b.x+=ax/d*190*dt;b.y+=ay/d*190*dt;b.dir=ax>=0?1:-1;
+      if(d<40)b.a-=dt*2.5;
+    }
+  });
+  bees=bees.filter(function(b){return b.a>0;});
+}
+function drawBee(b,t){
+  ctx.globalAlpha=Math.max(0,b.a);
+  ctx.save();ctx.translate(b.x,b.y+Math.sin(t*10+b.ph)*3);ctx.scale(b.dir,1);
+  ctx.font='28px "Apple Color Emoji","Segoe UI Emoji","Noto Color Emoji",sans-serif';ctx.textAlign='center';ctx.textBaseline='middle';ctx.fillText('🐝',0,0);
+  if(b.st==='buzz'&&Math.sin(t*1.3+b.ph*3)>.93){ctx.scale(b.dir,1);ctx.font='800 13px '+ff();ctx.fillStyle='#b02a37';ctx.fillText('bzzz!',16,-18);}
+  ctx.restore();ctx.globalAlpha=1;
+}
+
+/* ---------- movement ---------- */
+function collide(p){
+  var i,dx,dy,d,r;
+  p.x=clamp(p.x,70,W-70);p.y=clamp(p.y,80,H-60);
+  for(i=0;i<TREES.length;i++){dx=p.x-TREES[i][0];dy=p.y-TREES[i][1];d=Math.hypot(dx,dy);r=30;if(d<r){d=d||1;p.x=TREES[i][0]+dx/d*r;p.y=TREES[i][1]+dy/d*r;}}
+  dx=p.x-HIVE.x;dy=p.y-(HIVE.y+40);d=Math.hypot(dx,dy);if(d<HIVE.r+6){d=d||1;p.x=HIVE.x+dx/d*(HIVE.r+6);p.y=HIVE.y+40+dy/d*(HIVE.r+6);}
+  var ex=(p.x-POND.x)/(POND.rx+10),ey=(p.y-POND.y)/(POND.ry+10),ed=Math.hypot(ex,ey);
+  if(ed<1){ed=ed||1;p.x=POND.x+ex/ed*(POND.rx+10);p.y=POND.y+ey/ed*(POND.ry+10);}
+}
+function stepMe(dt){
+  var vx=0,vy=0,sp=210;
+  if(!modalOpen){
+    if(keys.ArrowLeft||keys.a)vx-=1;if(keys.ArrowRight||keys.d)vx+=1;if(keys.ArrowUp||keys.w)vy-=1;if(keys.ArrowDown||keys.s)vy+=1;
+    if(vx||vy){me.tx=null;me.want=null;}
+    else if(me.tx!==null){
+      var dx=me.tx-me.x,dy=me.ty-me.y,d=Math.hypot(dx,dy);
+      if(d<8){me.tx=null;}else{vx=dx/d;vy=dy/d;}
+    }
+  }else{me.tx=null;}
+  var ox=me.x,oy=me.y,m=Math.hypot(vx,vy);
+  if(m){vx/=m;vy/=m;me.x+=vx*sp*dt;me.y+=vy*sp*dt;if(Math.abs(vx)>.2)me.dir=vx>0?1:-1;}
+  collide(me);
+  me.moving=m>0;
+  if(me.tx!==null){
+    if(Math.hypot(me.x-ox,me.y-oy)<sp*dt*.2){me.stuck+=dt;if(me.stuck>.5){me.tx=null;me.want=null;me.stuck=0;}}else me.stuck=0;
+  }
+  me.mv=me.moving;
+}
+function nearest(){
+  var best=null,bd=76;
+  ITEMS_ALL.forEach(function(it){var d=Math.hypot(it.x-me.x,it.y-me.y);if(d<bd){bd=d;best=it;}});
+  return best;
+}
+function itemLabel(it){
+  if(it.kind==='clue'){return S.learned[it.id]?{en:'Read clue '+(it.id+1)+' again',zh:'再读一次线索 '+(it.id+1)}:{en:'Read clue '+(it.id+1),zh:'阅读线索 '+(it.id+1)};}
+  if(it.q<0)return null;
+  if(learnedCount()<UNLOCK)return {en:'Find '+(UNLOCK-learnedCount())+' more clue'+(UNLOCK-learnedCount()>1?'s':'')+' first',zh:'先找到 '+(UNLOCK-learnedCount())+' 个线索',lock:true};
+  return {en:'Honey question',zh:'蜂蜜问题'};
+}
+function updateNear(){
+  near=modalOpen||!playing?null:nearest();
+  var b=$('act');
+  if(!near){b.hidden=true;return;}
+  var l=itemLabel(near);
+  if(!l){b.hidden=true;return;}
+  var h='<span class="en">'+(l.lock?'🔒 ':near.kind==='clue'?'🌼 ':'🍯 ')+l.en+'</span><span class="zh">'+l.zh+'</span>';
+  if(b.getAttribute('data-h')!==h){b.innerHTML=h;b.setAttribute('data-h',h);}
+  b.hidden=false;
+}
+
+/* ---------- main loop ---------- */
+var last=0,clock=0,miniT=0;
+function frame(ts){
+  requestAnimationFrame(frame);
+  var dt=Math.min(.05,(ts-last)/1000||0);last=ts;clock+=dt;
+  stepFx(dt);
+  if(!playing)return;
+  me.n=P.name;me.c=isT?8:P.ch;me.t=isT;
+  stepMe(dt);
+  if(me.want&&!modalOpen&&Math.hypot(me.want.x-me.x,me.want.y-me.y)<64){var w=me.want;me.want=null;me.tx=null;openItem(w);}
+  for(var id in remotes){var r=remotes[id];var dx=r.tx-r.x,dy=r.ty-r.y;r.mv=Math.hypot(dx,dy)>3;if(r.mv&&Math.abs(dx)>1)r.dir=dx>0?1:-1;var k=1-Math.pow(.0001,dt);r.x+=dx*k;r.y+=dy*k;}
+  stepBees(dt,clock);
+  STONES.forEach(function(st){if(st.q<0&&st.cool&&performance.now()>st.cool){st.cool=0;st.q=nextQ();if(st.q>=0&&!modalOpen)Music.sfx('tap');}});
+  updateNear();
+  pushPresence(false);
+  cam.x=clamp(me.x-vw/scale/2,0,Math.max(0,W-vw/scale));cam.y=clamp(me.y-vh/scale/2-20,0,Math.max(0,H-vh/scale));
+  if(vw/scale>W)cam.x=(W-vw/scale)/2;if(vh/scale>H)cam.y=(H-vh/scale)/2;
+  ctx.setTransform(dpr,0,0,dpr,0,0);ctx.fillStyle='#8fd35a';ctx.fillRect(0,0,vw,vh);
+  ctx.setTransform(dpr*scale,0,0,dpr*scale,-cam.x*dpr*scale,-cam.y*dpr*scale);
+  ctx.drawImage(bg,0,0);
+  var nb=Math.floor(progress()*DECOR.length);
+  for(var i=0;i<nb;i++){var d=DECOR[i];ctx.fillStyle=DEC[d.c];ctx.strokeStyle='#23331c';ctx.lineWidth=1.5;ctx.beginPath();ctx.arc(d.x,d.y,d.s,0,7);ctx.fill();ctx.stroke();ctx.fillStyle='#ffc83d';ctx.beginPath();ctx.arc(d.x,d.y,d.s*.35,0,7);ctx.fill();}
+  var ents=[];
+  TREES.forEach(function(t){ents.push({y:t[1],f:function(){drawTree(t);}});});
+  ents.push({y:HIVE.y+50,f:drawHive});
+  CLUES.forEach(function(c){ents.push({y:c.y,f:function(){drawClue(c,clock,near===c);}});});
+  STONES.forEach(function(s){ents.push({y:s.y,f:function(){drawStone(s,clock,near===s);}});});
+  for(id in remotes){(function(r){if(r.x<cam.x-80||r.x>cam.x+vw/scale+80||r.y<cam.y-80||r.y>cam.y+vh/scale+120)return;ents.push({y:r.y,f:function(){drawPlayer(r,clock,false);}});})(remotes[id]);}
+  ents.push({y:me.y,f:function(){drawPlayer(me,clock,true);}});
+  ents.sort(function(a,b){return a.y-b.y;});
+  ents.forEach(function(e){e.f();});
+  /* click marker */
+  if(me.tx!==null){ctx.strokeStyle='#ffc83d';ctx.lineWidth=4;ctx.beginPath();ctx.arc(me.tx,me.ty,10+Math.sin(clock*8)*2,0,7);ctx.stroke();}
+  bees.forEach(function(b){drawBee(b,clock);});
+  var crowd=0;for(id in remotes)crowd++;
+  for(id in remotes){var rr=remotes[id];if(rr.x<cam.x-80||rr.x>cam.x+vw/scale+80||rr.y<cam.y-80||rr.y>cam.y+vh/scale+120)continue;drawTag(rr,false,clock,rr.t||crowd<=8||Math.hypot(rr.x-me.x,rr.y-me.y)<280);}
+  drawTag(me,true,clock,true);
+  if(performance.now()>me.emoUntil)me.emo='';
+  miniT+=dt;if(miniT>.1){miniT=0;drawMini();}
+}
+function drawMini(){
+  var w=mini.width,h=mini.height,sx=w/W,sy=h/H;
+  mx.clearRect(0,0,w,h);mx.fillStyle='#b8e48c';mx.fillRect(0,0,w,h);
+  mx.fillStyle='#8fd3ee';mx.beginPath();mx.ellipse(POND.x*sx,POND.y*sy,POND.rx*sx,POND.ry*sy,0,0,7);mx.fill();
+  mx.fillStyle='#f2b632';mx.beginPath();mx.arc(HIVE.x*sx,(HIVE.y+30)*sy,9,0,7);mx.fill();
+  CLUES.forEach(function(c){mx.fillStyle=S.learned[c.id]?'#d99a00':'#ff4f87';mx.beginPath();mx.arc(c.x*sx,c.y*sy,S.learned[c.id]?4:6,0,7);mx.fill();});
+  STONES.forEach(function(s){if(s.q<0)return;mx.fillStyle='#7a4a00';mx.fillRect(s.x*sx-5,s.y*sy-5,10,10);});
+  for(var id in remotes){var r=remotes[id];mx.fillStyle=CH[r.c].c;mx.strokeStyle='#23331c';mx.lineWidth=2;mx.beginPath();mx.arc(r.x*sx,r.y*sy,6,0,7);mx.fill();mx.stroke();}
+  mx.fillStyle='#fff';mx.strokeStyle='#23331c';mx.lineWidth=3;mx.beginPath();mx.arc(me.x*sx,me.y*sy,8,0,7);mx.fill();mx.stroke();
+}
+
+/* ---------- input ---------- */
+cv.addEventListener('pointerdown',function(e){
+  if(!playing||modalOpen)return;
+  Music.resume&&Music.resume();
+  var r=cv.getBoundingClientRect(),wx=cam.x+(e.clientX-r.left)/scale,wy=cam.y+(e.clientY-r.top)/scale;
+  var hit=null,bd=46;
+  ITEMS_ALL.forEach(function(it){var d=Math.hypot(it.x-wx,(it.y-26)-wy);if(d<bd){bd=d;hit=it;}});
+  if(hit){me.want=hit;me.tx=hit.x;me.ty=hit.y+34;}else{me.want=null;me.tx=clamp(wx,70,W-70);me.ty=clamp(wy,80,H-60);}
+  me.stuck=0;
+});
+addEventListener('keydown',function(e){
+  if(!playing)return;
+  var k=e.key.length===1?e.key.toLowerCase():e.key;
+  if(modalOpen){if(k==='Escape')closeModal();return;}
+  if(['ArrowLeft','ArrowRight','ArrowUp','ArrowDown'].indexOf(k)>=0||'wasd'.indexOf(k)>=0&&k.length===1){keys[k]=true;e.preventDefault();}
+  if((k==='e'||k===' '||k==='Enter')&&near&&document.activeElement.tagName!=='BUTTON'){e.preventDefault();openItem(near);}
+});
+addEventListener('keyup',function(e){var k=e.key.length===1?e.key.toLowerCase():e.key;keys[k]=false;});
+addEventListener('blur',function(){keys={};});
+$('act').addEventListener('click',function(){if(near)openItem(near);});
+$('emotes').addEventListener('click',function(e){
+  var b=e.target.closest('[data-emo]');if(!b)return;
+  me.emo=b.getAttribute('data-emo');me.emoAt=Date.now();me.emoUntil=performance.now()+3500;Music.sfx('tap');pushPresence(true);
+});
+
+/* ---------- modal plumbing ---------- */
+var LS=null,Q=null;
+function openModal(html){var tt=$('toast');tt.className='';modalOpen=true;me.tx=null;me.want=null;keys={};$('mbody').innerHTML=html;$('modal').hidden=false;$('modal').querySelector('.mcard').scrollTop=0;}
+function closeModal(){TTS.cancel();act=isT?'t':'w';modalOpen=false;LS=null;Q=null;$('modal').hidden=true;updateHud();}
+function openItem(it){
+  if(it.kind==='clue')openLesson(it);
+  else{
+    if(it.q<0){toast('This honey pot is growing back. Come back soon! 🌱','这个蜂蜜罐正在长回来，过一会儿再来！🌱');return;}
+    if(learnedCount()<UNLOCK){toast('Find '+(UNLOCK-learnedCount())+' more flower clue'+(UNLOCK-learnedCount()>1?'s':'')+' to wake the honey questions.','再找到 '+(UNLOCK-learnedCount())+' 朵线索花，才能打开蜂蜜问题。',3200);Music.sfx('oops');return;}
+    openPractice(it);
+  }
+}
+
+/* ---------- lessons ---------- */
+function sentHTML(item,cur){
+  return item.words.map(function(w){
+    var v=w.versions[0];w.versions.forEach(function(x){if(x.step<=cur)v=x;});
+    var s='';
+    v.chars.forEach(function(ch){
+      if(ch.t)s+='<span class="fx r-'+RULE[item.s[ch.t-1].r].cls+(ch.t===cur?' pop':'')+'">'+esc(ch.c)+'</span>';
+      else s+=esc(ch.c);
+    });
+    return '<span class="w">'+s+'</span>';
+  }).join('');
+}
+function openLesson(c){
+  var item=ITEMS[c.id];
+  LS={c:c,item:item,cur:0};act='r';
+  openModal('');
+  renderLesson(true);
+}
+function renderLesson(speak){
+  var item=LS.item,cur=LS.cur,n=item.n,done=!!S.learned[LS.c.id];
+  var h='<div class="mtag"><span>🌼 '+bi('Clue','线索')+' '+(LS.c.id+1)+' / 22</span>'+(done?'<span class="pill">✓ '+bi('Collected','已收集')+'</span>':'<span class="pill">⭐ +'+LESSON_PTS+'</span>')+'</div>';
+  h+='<div class="sentbig" aria-live="polite">'+sentHTML(item,cur)+'</div>';
+  var say='',sayz='';
+  if(cur===0){
+    h+='<div class="stepbox">'+bi('Read the sentence. Can you spot what is wrong?','读一读这个句子。你能看出哪里有错吗？')+'</div>';
+    say='Read the sentence. Can you spot what is wrong?';sayz='读一读这个句子。你能看出哪里有错吗？';
+  }else{
+    var s=item.s[cur-1],R=RULE[s.r];
+    h+='<div class="stepbox"><div><span class="rule r-'+R.cls+'"><b>'+esc(R.sym)+'</b>'+bi(R.en,R.zh).replace(/<span class="zh">/,'<span class="zh inl">')+'</span></div>'+bi(esc(s.en),esc(s.zh))+'</div>';
+    say=s.en;sayz=s.zh;
+  }
+  if(cur===n){
+    h+='<div class="stepbox">'+bi('Now it is perfect!','现在完全正确了！')+'<div class="bi"><span class="zh">'+esc(item.zh)+'</span></div>'+(item.tip?'<div class="tip bi">'+bi(esc(item.tip.en),esc(item.tip.zh))+'</div>':'')+'</div>';
+  }
+  h+='<div class="mactions"><button class="btn" data-a="listen">🔊 '+bi('Listen','听一听')+'</button>';
+  h+=cur<n?'<button class="btn go" data-a="fix">'+bi('Fix the next mistake ▶','修正下一处 ▶')+'</button>':'<button class="btn good" data-a="collect">'+(done?bi('Back to the garden','回到花园'):bi('Collect the clue ⭐ +'+LESSON_PTS,'收集线索 ⭐ +'+LESSON_PTS))+'</button>';
+  h+='</div>';
+  $('mbody').innerHTML=h;
+  LS.say=say;LS.sayz=sayz;
+  if(speak){
+    if(cur===n){TTS.say(fixedText(item)+'. Now it is perfect!',item.zh+' 现在完全正确了！');}
+    else if(cur===0){TTS.say(say,sayz);}
+    else TTS.say(say,sayz);
+  }
+}
+function collectClue(){
+  var id=LS.c.id;
+  if(!S.learned[id]){
+    S.learned[id]=1;addPts(LESSON_PTS);Music.sfx('good');
+    burst(innerWidth/2,innerHeight/2,26,'star');
+    var left=22-learnedCount();
+    toast('Clue collected! '+(left?left+' to go.':'You found every clue!'),'线索收集成功！'+(left?'还剩 '+left+' 个。':'你找到了所有线索！'));
+    if(learnedCount()===UNLOCK)setTimeout(function(){toast('The honey questions are awake! 🍯','蜂蜜问题已解锁！🍯',3000);},1800);
+  }
+  save();closeModal();
+}
+
+/* ---------- practice ---------- */
+function shuf(a){a=a.slice();for(var i=a.length-1;i>0;i--){var j=Math.floor(Math.random()*(i+1)),t=a[i];a[i]=a[j];a[j]=t;}return a;}
+function openPractice(stone){
+  var q=PQ[stone.q];act='q';
+  Q={stone:stone,q:q,tries:0,dead:[],sel:[],phase:'ask',ord:q.opts?shuf(q.opts.map(function(_,i){return i;})):null,fb:null};
+  openModal('');
+  renderPractice(true);
+}
+var LTR='ABCD';
+function renderPractice(speak){
+  var q=Q.q,h='';
+  var lv=['','Easy','Medium','Challenging'],lz=['','简单','中等','有挑战'];
+  h+='<div class="mtag"><span>🍯 '+bi('Honey question','蜂蜜问题')+'</span><span class="pill">'+bi(lv[q.lvl],lz[q.lvl])+'</span><span class="pill">⭐ '+PTS[Math.min(Q.tries,2)]+'</span></div>';
+  h+='<div class="q-art" aria-hidden="true">'+q.art+'</div><div class="qtext">'+bi(esc(q.en),esc(q.zh))+'</div>';
+  if(q.show)h+='<div class="sentbig">'+esc(q.show)+'</div>';
+  var locked=Q.phase!=='ask';
+  if(q.type==='pick'||q.type==='word'){
+    if(q.type==='word'){
+      var gap=Q.phase==='ask'?'<span class="gap">&nbsp;&nbsp;&nbsp;</span>':'<span class="gap">'+esc(q.opts[q.ans].t)+'</span>';
+      h+='<div class="sentbig">'+esc(q.pre)+' '+gap+' '+esc(q.post)+'</div>';
+    }
+    h+='<div class="opts">';
+    Q.ord.forEach(function(oi,pos){
+      var o=q.opts[oi],dead=Q.dead.indexOf(oi)>=0,right=locked&&oi===q.ans;
+      h+='<button class="opt'+(right?' right':'')+'" data-a="pick" data-i="'+oi+'"'+(dead||locked?' disabled':'')+'><span class="ltr">'+LTR[pos]+'</span><span>'+esc(o.t)+'</span></button>';
+    });
+    h+='</div>';
+  }else if(q.type==='mark'){
+    h+='<div class="sentbig">'+esc(q.pre)+'<span class="gap">'+(locked?esc(q.opts[q.ans].t):'&nbsp;&nbsp;')+'</span>'+esc(q.post)+'</div><div class="opts marks">';
+    Q.ord.forEach(function(oi){
+      var o=q.opts[oi],dead=Q.dead.indexOf(oi)>=0,right=locked&&oi===q.ans;
+      h+='<button class="opt'+(right?' right':'')+'" data-a="pick" data-i="'+oi+'"'+(dead||locked?' disabled':'')+'><span class="big">'+esc(o.t)+'</span><span class="bi">'+bi(esc(o.n.en),esc(o.n.zh))+'</span></button>';
+    });
+    h+='</div>';
+  }else if(q.type==='tap'){
+    h+='<div class="tapw">';
+    q.words.forEach(function(w,i){
+      var on=Q.sel.indexOf(i)>=0,need=q.need.indexOf(i)>=0,cls='';
+      if(locked){if(need)cls=on?'ok':'show';}
+      h+='<button data-a="tap" data-i="'+i+'" aria-pressed="'+(on?'true':'false')+'" class="'+cls+'"'+(locked?' disabled':'')+'>'+esc(w)+'</button>';
+    });
+    h+='</div>';
+  }
+  if(Q.fb){
+    var f=Q.fb;
+    h+='<div class="fb '+f.cls+'" role="status"><div class="face">'+f.face+'</div><div class="bi"><h4>'+bi(esc(f.t.en),esc(f.t.zh))+'</h4><p>'+bi(esc(f.m.en),esc(f.m.zh))+'</p>'+(f.h?'<p>💡 '+bi(esc(f.h.en),esc(f.h.zh))+'</p>':'')+(f.cls==='right'?'<div class="stars" aria-hidden="true">'+Array(3-Math.min(Q.tries,2)+1).join('⭐')+'</div>':'')+'</div></div>';
+  }
+  h+='<div class="mactions"><button class="btn" data-a="listenq">🔊 '+bi('Listen','听一听')+'</button>';
+  if(Q.phase==='ask'){if(q.type==='tap')h+='<button class="btn go" data-a="check"'+(Q.sel.length?'':' disabled')+'>'+bi('Check my answer','检查答案')+'</button>';}
+  else h+='<button class="btn good" data-a="finishq">'+bi('Back to the garden','回到花园')+'</button>';
+  h+='</div>';
+  var sc=$('mbody').parentNode.scrollTop;
+  $('mbody').innerHTML=h;$('mbody').parentNode.scrollTop=sc;
+  if(speak==='ask'||speak===true){
+    var en=q.en,zh=q.zh;
+    if(q.type==='pick'&&q.opts.length)en+=' '+Q.ord.map(function(oi,p){return LTR[p]+'. '+q.opts[oi].t;}).join('. ');
+    if(q.show)en+=' '+q.show+'.';
+    if(q.pre&&q.type==='word')en+=' '+q.pre+', blank, '+q.post;
+    if(q.pre&&q.type==='mark')en+=' '+q.pre+'.';
+    TTS.say(en,zh);
+  }
+}
+function tagStat(q,first){q.tags.forEach(function(t){S.att[t]=(S.att[t]||0)+1;if(first)S.hit[t]=(S.hit[t]||0)+1;});}
+var CHEER=[bi2('Brilliant!','太棒了！'),bi2('Well done!','做得好！'),bi2('Fantastic!','真厉害！'),bi2('You got it!','答对啦！')];
+var AGAIN=[bi2('Great persistence!','坚持就是胜利！'),bi2('You did it!','你做到了！')];
+var OOPS=[bi2('Nearly there!','差一点点！'),bi2('Good try!','再接再厉！'),bi2('Not quite yet!','还差一点！')];
+function bi2(en,zh){return {en:en,zh:zh};}
+function pickOne(a){return a[Math.floor(Math.random()*a.length)];}
+function qRight(){
+  var q=Q.q,pts=PTS[Math.min(Q.tries,2)];
+  Q.phase='right';
+  var t=Q.tries===0?pickOne(CHEER):pickOne(AGAIN);
+  Q.fb={cls:'right',face:'🎉',t:t,m:q.why,h:null};
+  S.solved[q.id]={t:Q.tries,p:pts};Q.stone.q=-1;Q.stone.cool=performance.now()+20000;
+  tagStat(q,Q.tries===0);addPts(pts);
+  Music.sfx('good');burst(innerWidth/2,innerHeight*.45,60,'star');
+  renderPractice(false);
+  TTS.say(t.en+' '+q.why.en+' You earned '+pts+' points for the team.',t.zh+' '+q.why.zh);
+  checkMilestone();
+}
+function qReveal(){
+  var q=Q.q;Q.phase='reveal';
+  Q.fb={cls:'reveal',face:'🔎',t:bi2('Here is the answer','答案在这里'),m:q.why,h:null};
+  S.solved[q.id]={t:3,p:0};Q.stone.q=-1;Q.stone.cool=performance.now()+20000;tagStat(q,false);save();
+  Music.sfx('tap');renderPractice(false);
+  TTS.say('Here is the answer. '+q.full+'. '+q.why.en,'答案是：'+q.why.zh);
+}
+function qMiss(x){
+  var q=Q.q;Q.tries++;
+  if(Q.tries>=3){qReveal();return;}
+  var t=pickOne(OOPS);
+  Q.fb={cls:'wrong',face:'🤔',t:t,m:x||bi2('That is not quite right.','这个答案还不太对。'),h:q.hint};
+  Music.sfx('oops');renderPractice(false);
+  TTS.say(t.en+' '+(x?x.en:'That is not quite right.')+' Hint: '+q.hint.en+' Try again!',t.zh+' '+(x?x.zh:'这个答案还不太对。')+' 提示：'+q.hint.zh);
+}
+function checkMilestone(){
+  var s=solvedCount();
+  if(s===PQ.length)setTimeout(function(){toast('All '+PQ.length+' honey questions solved! 🏆','全部 '+PQ.length+' 个蜂蜜问题都答对了！🏆',3500);},1500);
+}
+function stepTap(i){
+  var k=Q.sel.indexOf(i);if(k>=0)Q.sel.splice(k,1);else Q.sel.push(i);
+  Music.sfx('tap');renderPractice(false);
+}
+function stepCheck(){
+  var num=function(a,b){return a-b;},need=Q.q.need.slice().sort(num).join(),got=Q.sel.slice().sort(num).join();
+  if(need===got)qRight();
+  else qMiss(null);
+}
+$('mbody').addEventListener('click',function(e){
+  var b=e.target.closest('[data-a]');if(!b)return;
+  var a=b.getAttribute('data-a');
+  if(a==='close')closeModal();
+  else if(a==='listen'&&LS){var ty=LS.cur===LS.item.n?[fixedText(LS.item),LS.item.zh]:[LS.say,LS.sayz];TTS.say(ty[0],ty[1],true);}
+  else if(a==='fix'&&LS){LS.cur++;Music.sfx('tap');renderLesson(true);}
+  else if(a==='collect'&&LS)collectClue();
+  else if(a==='pick'&&Q&&Q.phase==='ask'){var oi=+b.getAttribute('data-i');if(oi===Q.q.ans)qRight();else{Q.dead.push(oi);qMiss(Q.q.opts[oi].x);}}
+  else if(a==='tap'&&Q&&Q.phase==='ask')stepTap(+b.getAttribute('data-i'));
+  else if(a==='check'&&Q&&Q.phase==='ask'&&Q.sel.length)stepCheck();
+  else if(a==='listenq'&&Q){var q=Q.q,en=q.en;if(q.type==='pick')en+=' '+Q.ord.map(function(oi,p){return LTR[p]+'. '+q.opts[oi].t;}).join('. ');if(q.show)en+=' '+q.show+'.';if(q.pre)en+=' '+q.pre+', '+(q.post||'');TTS.say(en,q.zh,true);}
+  else if(a==='finishq')closeModal();
+  else if(a==='again')closeModal();
+});
+$('modal').addEventListener('click',function(e){if(e.target===$('modal'))closeModal();});
+
+/* ---------- roster and report ---------- */
+function renderRoster(){
+  var box=$('roster');if(box.hidden)return;
+  var list=isT?[]:[{n:P.name,c:P.ch,p:S.pts,me:1}],tch=isT?[P.name]:[];
+  for(var id in remotes){if(remotes[id].t)tch.push(remotes[id].n);else list.push({n:remotes[id].n,c:remotes[id].c,p:remotes[id].p,me:0});}
+  list.sort(function(a,b){return b.p-a.p;});
+  var h='<h3>'+bi('Garden team','花园小队')+(roomName?' · '+esc(roomName):'')+'</h3><ul>';
+  var shown=list.slice(0,10),mi=list.findIndex(function(r){return r.me;});
+  shown.forEach(function(r,i){h+='<li class="'+(r.me?'me':'')+'"><span>'+CH[r.c].e+'</span><b>'+(i+1)+'. '+esc(r.n)+(r.me?' (you)':'')+'</b><span>⭐ '+r.p+'</span></li>';});
+  if(mi>=10){var m=list[mi];h+='<li class="me"><span>'+CH[m.c].e+'</span><b>'+(mi+1)+'. '+esc(m.n)+' (you)</b><span>⭐ '+m.p+'</span></li>';}
+  h+='</ul>'+(tch.length?'<p class="small">🧑‍🏫 '+tch.map(esc).join(', ')+'</p>':'')+(list.length>11?'<p class="small">'+list.length+' pupils in this garden</p>':'');
+  if(!room)h+='<p class="small bi">'+bi('Playing on your own. To play with your class, go back to the start screen and type your class code.','你正在单人游戏。想和同学一起玩，请回到开始页面输入班级代码。')+'</p>';
+  else if(list.length<=1&&!isT)h+='<p class="small bi">'+bi('Waiting for friends'+(roomName?' with code “'+esc(roomName)+'”':'')+'. Ask them to type the same code!','正在等待朋友'+(roomName?'（小组代码：'+esc(roomName)+'）':'')+'。请他们输入相同的代码！')+'</p>';
+  box.innerHTML=h;
+}
+function skillRows(){
+  var rows=[],weak=[];
+  SK.forEach(function(s){
+    var a=S.att[s.k]||0,h=S.hit[s.k]||0,pc=a?Math.round(h/a*100):null;
+    rows.push({s:s,a:a,pc:pc});
+    if(pc!==null&&pc<70)weak.push(s);
+  });
+  return {rows:rows,weak:weak};
+}
+function openReport(fromWin){
+  var sk=skillRows(),first=0;
+  for(var k in S.solved)if(S.solved[k].t===0)first++;
+  var h='<div class="rep">';
+  h+='<div class="mtag"><span>🏆 '+bi('My detective report','我的侦探报告')+'</span></div>';
+  h+='<h2>'+(progress()>=1?bi('The bees are home! The garden is saved! 🎉','蜜蜂回家了！花园得救了！🎉'):bi('Keep going, detective!','继续加油，小侦探！'))+'</h2>';
+  h+='<p>'+bi('Team points: '+Math.min(teamTotal(),9999)+' of '+target()+'. The more flowers and questions we finish, the more bees fly home.','团队得分：'+Math.min(teamTotal(),9999)+' / '+target()+'。我们完成的花朵和问题越多，飞回家的蜜蜂就越多。')+'</p>';
+  h+='<div class="kpis"><div><b>⭐ '+S.pts+'</b>'+bi('My points','我的分数')+'</div><div><b>🌼 '+learnedCount()+'/22</b>'+bi('Clues','线索')+'</div><div><b>🍯 '+solvedCount()+'/'+PQ.length+'</b>'+bi('Questions','问题')+'</div></div>';
+  h+='<div><span class="lab">'+bi('My skills','我的技能')+'</span><div style="display:grid;gap:.6rem">';
+  sk.rows.forEach(function(r){
+    h+='<div class="sk'+(r.pc!==null&&r.pc<70?' low':'')+'"><span><b>'+esc(r.s.sym)+'</b> '+bi(r.s.en,r.s.zh).replace('<span class="zh">','<span class="zh inl">')+'</span><b>'+(r.pc===null?'–':r.pc+'%')+'</b><span class="b2"><i style="width:'+(r.pc||0)+'%"></i></span></div>';
+  });
+  h+='</div></div>';
+  if(sk.weak.length){
+    h+='<div class="stepbox"><b>'+bi('Areas to practise','需要多练习的地方')+'</b>';
+    sk.weak.forEach(function(s){h+='<div>'+bi('<b>'+s.en+':</b> '+s.tip,'<b>'+s.zh+'：</b>'+s.tz)+'</div>';});
+    h+='</div>';
+  }else if(solvedCount()>=3){h+='<div class="stepbox">'+bi('Great work! You are doing well on every skill so far.','做得好！到目前为止，每项技能你都掌握得不错。')+'</div>';}
+  else{h+='<div class="stepbox">'+bi('Answer the honey questions to see how you are doing on each skill.','回答蜂蜜问题，就能看到你每项技能的情况。')+'</div>';}
+  var list=isT?[]:[{n:P.name,c:P.ch,p:S.pts,me:1}];for(var id in remotes)if(!remotes[id].t)list.push({n:remotes[id].n,c:remotes[id].c,p:remotes[id].p});
+  list.sort(function(a,b){return b.p-a.p;});
+  if(list.length>1){h+='<div><span class="lab">'+bi('Garden team','花园小队')+'</span><ul class="team">';list.slice(0,10).forEach(function(r){h+='<li><span>'+CH[r.c].e+'</span><b>'+esc(r.n)+'</b><span>⭐ '+r.p+'</span></li>';});h+='</ul></div>';}
+  h+='<div class="mactions"><button class="btn go" data-a="again">'+bi('Back to the garden','回到花园')+'</button></div></div>';
+  openModal(h);
+  if(fromWin)TTS.say('Well done, team! Every sentence you fixed helped the bees go home.','团队做得好！你们改正的每个句子都帮助蜜蜂回家了。');
+}
+
+/* ---------- teacher: class monitor ---------- */
+var monSort='help',PRESETS=[['Well done, everyone! 大家做得好！'],['Five minutes left. 还剩五分钟。'],['Please find the clue flowers first. 请先找线索花。'],['Please walk calmly and read carefully. 请慢慢走，认真阅读。']];
+function ago(ms){var m=Math.floor(ms/60000);return m<1?'under 1 min':m+' min';}
+function renderMon(){
+  var box=$('mon');if(!isT||box.hidden)return;
+  var now=Date.now(),list=[],tot=0,full=0;
+  for(var id in remotes){var r=remotes[id];if(r.t)continue;list.push(r);tot+=r.p;if(r.l>=22)full++;}
+  list.sort(function(a,b){return monSort==='help'?(a.prog||0)-(b.prog||0):b.p-a.p;});
+  var h='<h3>📋 '+bi('Class monitor','班级监控')+(roomName?' · '+esc(roomName):'')+'</h3>';
+  h+='<div class="bi">'+bi('Pupils: '+list.length+' · Average points: '+(list.length?Math.round(tot/list.length):0)+' · All 22 clues found: '+full,'学生：'+list.length+' · 平均分：'+(list.length?Math.round(tot/list.length):0)+' · 已找齐 22 个线索：'+full)+'</div>';
+  h+='<div class="row"><b>'+bi('Goal per pupil','每人目标分')+'</b>';
+  [40,80,120].forEach(function(g){h+='<button class="sm" data-m="goal" data-v="'+g+'" aria-pressed="'+(goalPer===g?'true':'false')+'">'+g+'</button>';});
+  h+='</div><div class="row"><b>'+bi('Sort','排序')+'</b><button class="sm" data-m="sort" data-v="help" aria-pressed="'+(monSort==='help'?'true':'false')+'">'+bi('Needs help first','先看需要帮助的')+'</button><button class="sm" data-m="sort" data-v="pts" aria-pressed="'+(monSort==='pts'?'true':'false')+'">'+bi('Most points','分数最高')+'</button></div>';
+  h+='<div class="row">';PRESETS.forEach(function(x,i){h+='<button class="sm" data-m="say" data-v="'+i+'">📢 '+esc(x[0].split(' ').slice(0,3).join(' '))+'…</button>';});h+='</div>';
+  h+='<div class="row"><input id="mon-say" maxlength="120" placeholder="Message to everyone 给大家的话" aria-label="Message to everyone"><button class="sm" data-m="send">📢 '+bi('Send','发送')+'</button></div>';
+  h+='<ul>';
+  var AC={w:'walking 走动',r:'reading a clue 读线索',q:'on a question 答题',t:'teacher'};
+  list.slice(0,60).forEach(function(r){
+    var stall=now-(r.prog||now),away=now-(r.chg||now)>60000,warn=stall>180000||away;
+    h+='<li class="'+(warn?'warn':'')+'"><span>'+CH[r.c].e+'</span><b>'+esc(r.n)+'</b><span>⭐'+r.p+' 🌼'+r.l+' 🍯'+r.s+'</span><small>'+(away?'⏸ away ':'')+esc(AC[r.a]||'')+' · '+(stall>180000?'⚠ no progress for '+ago(stall):'progress ok 正常')+'</small></li>';
+  });
+  if(!list.length)h+='<li><span>👀</span><b>'+bi('No pupils yet. Ask them to type the class code.','还没有学生。请他们输入班级代码。')+'</b></li>';
+  h+='</ul>';
+  var keep=$('mon-say')?$('mon-say').value:'';var focus=document.activeElement&&document.activeElement.id==='mon-say';
+  box.innerHTML=h;if(keep){$('mon-say').value=keep;if(focus)$('mon-say').focus();}
+}
+$('mon').addEventListener('click',function(e){
+  var b=e.target.closest('[data-m]');if(!b)return;var a=b.getAttribute('data-m'),v=b.getAttribute('data-v');
+  if(a==='sort'){monSort=v;renderMon();}
+  else if(a==='goal'){goalPer=+v;sendGoal();updateHud();renderMon();toast('Goal set to '+v+' points per pupil.','目标已设为每人 '+v+' 分。',2000);}
+  else if(a==='say'){sendSay(PRESETS[+v][0]);}
+  else if(a==='send'){var i=$('mon-say');if(i.value.trim()){sendSay(i.value.trim());i.value='';}}
+});
+$('mon').addEventListener('keydown',function(e){e.stopPropagation();if(e.key==='Enter'&&e.target.id==='mon-say'){var t=e.target.value.trim();if(t){sendSay(t);e.target.value='';}}});
+function sendSay(t){
+  t=t.replace(/[\u0000-\u001f<>]/g,'').slice(0,140);if(!t)return;
+  announce(t);
+  if(room){try{room.emit('say',{t:t}).catch(function(){toast('Only the teacher account can send messages.','只有老师账号可以发送消息。');});}catch(e){}}
+}
+setInterval(function(){renderMon();},2500);
+$('b-class').addEventListener('click',function(){var m=$('mon');m.hidden=!m.hidden;renderMon();});
+
+/* ---------- toolbar and lobby ---------- */
+function setLang(l){
+  L=l;document.body.setAttribute('data-lang',l);
+  $('langtxt').textContent=l==='both'?'EN+中':l==='en'?'EN':'中文';
+  [].forEach.call($('lobbylang').children,function(b){b.setAttribute('aria-checked',b.getAttribute('data-l')===l?'true':'false');});
+  save();
+}
+$('lobbylang').addEventListener('click',function(e){var b=e.target.closest('[data-l]');if(b)setLang(b.getAttribute('data-l'));});
+$('b-lang').addEventListener('click',function(){setLang(L==='both'?'en':L==='en'?'zh':'both');});
+$('b-voice').addEventListener('click',function(){TTS.on=!TTS.on;this.setAttribute('aria-pressed',TTS.on?'true':'false');this.textContent=TTS.on?'🔊':'🔇';toast(TTS.on?'Read aloud is on':'Read aloud is off',TTS.on?'朗读已开启':'朗读已关闭',1400);});
+$('b-music').addEventListener('click',function(){
+  if(Music.isOn()){Music.stop();this.setAttribute('aria-pressed','false');}else{Music.start();this.setAttribute('aria-pressed','true');}
+  try{localStorage.setItem('bz-music',Music.isOn()?'1':'0');}catch(e){}
+});
+$('b-friends').addEventListener('click',function(){var r=$('roster');r.hidden=!r.hidden;this.setAttribute('aria-pressed',r.hidden?'false':'true');renderRoster();});
+$('b-report').addEventListener('click',function(){if(!modalOpen)openReport(false);});
+
+var chars=$('chars');
+CH.slice(0,8).forEach(function(c,i){
+  var b=document.createElement('button');b.type='button';b.setAttribute('role','radio');b.setAttribute('aria-label','Character '+(i+1));b.textContent=c.e;
+  b.addEventListener('click',function(){P.ch=i;paintChars();});chars.appendChild(b);
+});
+function paintChars(){[].forEach.call(chars.children,function(b,i){b.setAttribute('aria-checked',i===P.ch?'true':'false');});}
+paintChars();$('nick').value=P.name;$('code').value=P.code;setLang(L);
+$('code').addEventListener('input',function(){var c=cleanCode(this.value);if(c!==this.value.toLowerCase()||this.value!==c){var bad=this.value.toLowerCase()!==c;this.value=c;if(bad)toast('Small letters and numbers only, no spaces.','只能用小写字母和数字，不要空格。',2200);}});
+
+(async function(){try{U=(window.claude&&window.claude.use)?await window.claude.use('user'):null;if(U&&U.canEdit){var ce=await U.canEdit();canTeach=ce===true;$('teachrow').hidden=!canTeach;}}catch(e){}})();
+$('go').addEventListener('click',function(){
+  isT=!!($('isteacher').checked&&canTeach);act=isT?'t':'w';
+  P.name=cleanName($('nick').value);if(!$('nick').value.trim())P.name=isT?'Teacher':CH[P.ch].e+' '+['Cat','Dog','Bunny','Panda','Fox','Frog','Owl','Lion'][P.ch];
+  P.name=P.name.slice(0,14);P.code=cleanCode($('code').value);save();
+  me.x=SPAWN.x+(Math.random()-.5)*100;me.y=SPAWN.y+(Math.random()-.5)*60;me.n=P.name;
+  $('lobby').hidden=true;$('top').hidden=false;$('bottom').hidden=false;
+  playing=true;initBees();
+  if(isT){$('b-class').hidden=false;$('mon').hidden=false;renderMon();}
+  var wasMusic='1';try{wasMusic=localStorage.getItem('bz-music')||'1';}catch(e){}
+  if(wasMusic!=='0'&&Music.available()){Music.setLively(true);Music.setVolume(.5);Music.start();}
+  else $('b-music').setAttribute('aria-pressed','false');
+  if(!Music.available())$('b-music').hidden=true;
+  if(!TTS.ok)$('b-voice').hidden=true;
+  Music.sfx('tap');
+  updateHud();
+  var hint=$('hint');
+  hint.innerHTML=bi('Tap or click the garden to walk. Arrow keys work too. Walk to a flower 🌼 to learn.','点击花园就能走路，也可以用方向键。走到小花 🌼 旁边开始学习。');hint.hidden=false;
+  setTimeout(function(){hint.hidden=true;},9000);
+  TTS.say('Welcome to Buzz Off Garden! The bees are cross because the garden signs are all mixed up. Walk to the flowers and fix the sentences.','欢迎来到赶走蜜蜂花园！花园里的牌子都写错了，蜜蜂很生气。走到小花旁边，把句子改正吧。');
+  connectRoom();
+});
+addEventListener('visibilitychange',function(){if(document.hidden){Music.suspend();TTS.cancel();}else Music.resume();});
+requestAnimationFrame(frame);
+window.__bz={goal:function(){return goalPer;},isT:function(){return isT;},S:S,P:P,CLUES:CLUES,STONES:STONES,remotes:remotes,me:me,teamTotal:teamTotal,progress:progress,openItem:openItem,PQ:PQ};
+})();
+</script>
